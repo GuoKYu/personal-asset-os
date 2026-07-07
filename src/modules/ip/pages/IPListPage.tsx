@@ -10,11 +10,41 @@ import {
   AlertTriangle,
   Search,
   Clock,
+  Trash2,
+  Edit,
 } from 'lucide-react'
 import { ipService } from '@/services/ipService'
+import { DataGrade } from '@/types'
 import type { IP, IPType, IPStatus } from '@/types'
 import { formatDate, formatCurrency } from '@/utils/format'
 import ParticleBackground from '@/components/effects/ParticleBackground'
+import EntityFormModal, { type FormField } from '@/components/EntityFormModal'
+
+const ipFormFields: FormField[] = [
+  { key: 'title', label: '标题', type: 'text', required: true, placeholder: '知识产权名称' },
+  { key: 'ipType', label: '类型', type: 'select', required: true, options: [
+    { value: 'software', label: '软件著作权' },
+    { value: 'patent', label: '发明专利' },
+    { value: 'trademark', label: '商标' },
+    { value: 'copyright', label: '版权' },
+  ]},
+  { key: 'registrationNo', label: '编号', type: 'text', placeholder: '注册号/申请号' },
+  { key: 'applicant', label: '权利人', type: 'text', placeholder: '申请人/权利人' },
+  { key: 'jurisdiction', label: '管辖区域', type: 'text', placeholder: '如 CN, US' },
+  { key: 'status', label: '状态', type: 'select', options: [
+    { value: 'pending', label: '申请中' },
+    { value: 'granted', label: '已授权' },
+    { value: 'active', label: '有效' },
+    { value: 'rejected', label: '被驳回' },
+    { value: 'expired', label: '已过期' },
+  ], defaultValue: 'pending' },
+  { key: 'filingDate', label: '申请日期', type: 'date' },
+  { key: 'grantDate', label: '授权日期', type: 'date' },
+  { key: 'expiryDate', label: '到期日期', type: 'date' },
+  { key: 'valuation', label: '估值', type: 'number', placeholder: '估值金额', min: 0, step: 1000 },
+  { key: 'description', label: '描述', type: 'textarea', placeholder: '简要描述' },
+  { key: 'tags', label: '标签', type: 'tags', placeholder: '输入标签后回车' },
+]
 
 const typeIcon = (type: string) => {
   const map: Record<string, React.ReactNode> = {
@@ -52,6 +82,8 @@ const IPListPage: React.FC = () => {
   const [typeFilter, setTypeFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [loading, setLoading] = useState(true)
+  const [modalOpen, setModalOpen] = useState(false)
+  const [editTarget, setEditTarget] = useState<IP | null>(null)
 
   useEffect(() => {
     const loadIPs = async () => {
@@ -66,6 +98,54 @@ const IPListPage: React.FC = () => {
     }
     loadIPs()
   }, [])
+
+  const reload = async () => {
+    const data = await ipService.getIPs()
+    setIps(data)
+  }
+
+  const handleAdd = () => {
+    setEditTarget(null)
+    setModalOpen(true)
+  }
+
+  const handleEdit = (ip: IP) => {
+    setEditTarget(ip)
+    setModalOpen(true)
+  }
+
+  const handleSubmit = async (data: Record<string, unknown>) => {
+    const base = {
+      type: 'ip',
+      name: data.title as string,
+      dataGrade: DataGrade.L3,
+      ipType: (data.ipType as IPType) || 'software',
+      title: (data.title as string) || '',
+      registrationNo: data.registrationNo as string | undefined,
+      applicant: (data.applicant as string) || '',
+      jurisdiction: (data.jurisdiction as string) || 'CN',
+      status: (data.status as IPStatus) || 'pending',
+      filingDate: data.filingDate as string | undefined,
+      grantDate: data.grantDate as string | undefined,
+      expiryDate: data.expiryDate as string | undefined,
+      valuation: data.valuation as number | undefined,
+      description: data.description as string | undefined,
+      tags: data.tags as string[] | undefined,
+      revenueGenerated: 0,
+    }
+    if (editTarget) {
+      await ipService.updateIP(editTarget.id, base)
+    } else {
+      await ipService.addIP(base)
+    }
+    await reload()
+  }
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('确定要删除这条知识产权记录吗？')) return
+    await ipService.deleteIP(id)
+    await reload()
+  }
 
   const filtered = useMemo(() => {
     return ips.filter((ip) => {
@@ -125,7 +205,7 @@ const IPListPage: React.FC = () => {
               </p>
             </div>
             <button
-              onClick={() => navigate('/ip/add')}
+              onClick={() => handleAdd()}
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium text-white transition-all duration-300 hover:scale-105"
               style={{ background: 'linear-gradient(135deg, #6366f1, #06b6d4)' }}
             >
@@ -247,9 +327,25 @@ const IPListPage: React.FC = () => {
                     </span>
                   </div>
                 </div>
-                <span className={`px-2.5 py-1 text-xs rounded-full font-medium ${sc.bg} ${sc.color}`}>
-                  {sc.label}
-                </span>
+                <div className="flex items-center gap-1.5">
+                  <span className={`px-2.5 py-1 text-xs rounded-full font-medium ${sc.bg} ${sc.color}`}>
+                    {sc.label}
+                  </span>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleEdit(ip) }}
+                    className="p-1.5 rounded-lg transition-all hover:scale-110 opacity-0 group-hover:opacity-100"
+                    style={{ background: 'var(--pao-bg-hover)', color: 'var(--pao-text-secondary)' }}
+                  >
+                    <Edit className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleDelete(ip.id) }}
+                    className="p-1.5 rounded-lg transition-all hover:scale-110 text-red-500 opacity-0 group-hover:opacity-100"
+                    style={{ background: 'var(--pao-bg-hover)' }}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               </div>
 
               <div className="space-y-2 text-xs" style={{ color: 'var(--pao-text-secondary)' }}>
@@ -303,6 +399,18 @@ const IPListPage: React.FC = () => {
           <p className="text-sm" style={{ color: 'var(--pao-text-secondary)' }}>暂无知识产权数据</p>
         </div>
       )}
+
+      {/* CRUD Modal */}
+      <EntityFormModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onSubmit={handleSubmit}
+        title={editTarget ? '编辑知识产权' : '新增知识产权'}
+        subtitle={editTarget ? '修改知识产权信息' : '录入新的知识产权记录'}
+        fields={ipFormFields}
+        initialData={editTarget ? (editTarget as unknown as Record<string, unknown>) : undefined}
+        accentGradient="linear-gradient(135deg, #6366f1, #06b6d4)"
+      />
     </div>
   )
 }

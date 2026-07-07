@@ -9,11 +9,44 @@ import {
   Search,
   BarChart3,
   FolderKanban,
+  Edit,
+  Trash2,
 } from 'lucide-react'
 import { projectService } from '@/services/projectService'
-import type { Project } from '@/types'
+import { DataGrade } from '@/types'
+import type { Project, ProjectStatus, ProjectPriority } from '@/types'
 import { formatDate } from '@/utils/format'
 import ParticleBackground from '@/components/effects/ParticleBackground'
+import EntityFormModal, { type FormField } from '@/components/EntityFormModal'
+
+const projectFormFields: FormField[] = [
+  { key: 'title', label: '项目名称', type: 'text', required: true, placeholder: '项目名称' },
+  { key: 'type', label: '类型', type: 'select', required: true, options: [
+    { value: 'personal', label: '个人项目' },
+    { value: 'work', label: '工作项目' },
+    { value: 'study', label: '学习项目' },
+    { value: 'investment', label: '投资项目' },
+  ], defaultValue: 'personal' },
+  { key: 'status', label: '状态', type: 'select', options: [
+    { value: 'planning', label: '规划中' },
+    { value: 'in_progress', label: '进行中' },
+    { value: 'completed', label: '已完成' },
+    { value: 'paused', label: '已暂停' },
+    { value: 'cancelled', label: '已取消' },
+  ], defaultValue: 'planning' },
+  { key: 'priority', label: '优先级', type: 'select', options: [
+    { value: 'low', label: '低' },
+    { value: 'medium', label: '中' },
+    { value: 'high', label: '高' },
+    { value: 'urgent', label: '紧急' },
+  ], defaultValue: 'medium' },
+  { key: 'description', label: '描述', type: 'textarea', placeholder: '项目描述' },
+  { key: 'startDate', label: '开始日期', type: 'date' },
+  { key: 'targetDate', label: '目标日期', type: 'date' },
+  { key: 'budget', label: '预算', type: 'number', placeholder: '预算金额', min: 0, step: 100 },
+  { key: 'progress', label: '进度(%)', type: 'number', min: 0, max: 100, step: 5, defaultValue: 0 },
+  { key: 'tags', label: '标签', type: 'tags', placeholder: '输入标签后回车' },
+]
 
 const statusConfig: Record<string, { label: string; color: string; bg: string; bar: string }> = {
   planning: { label: '规划中', color: 'text-amber-600', bg: 'bg-amber-500/10', bar: 'linear-gradient(90deg, #f59e0b, #fbbf24)' },
@@ -40,6 +73,8 @@ const ProjectListPage: React.FC = () => {
   const [typeFilter, setTypeFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [loading, setLoading] = useState(true)
+  const [modalOpen, setModalOpen] = useState(false)
+  const [editTarget, setEditTarget] = useState<Project | null>(null)
 
   useEffect(() => {
     const loadProjects = async () => {
@@ -54,6 +89,51 @@ const ProjectListPage: React.FC = () => {
     }
     loadProjects()
   }, [])
+
+  const reload = async () => {
+    const data = await projectService.getProjects()
+    setProjects(data)
+  }
+
+  const handleAdd = () => {
+    setEditTarget(null)
+    setModalOpen(true)
+  }
+
+  const handleEdit = (project: Project) => {
+    setEditTarget(project)
+    setModalOpen(true)
+  }
+
+  const handleSubmit = async (data: Record<string, unknown>) => {
+    const base = {
+      type: (data.type as string) || 'personal',
+      name: (data.title as string) || '',
+      dataGrade: DataGrade.L3,
+      title: (data.title as string) || '',
+      description: data.description as string | undefined,
+      status: (data.status as ProjectStatus) || 'planning',
+      priority: (data.priority as ProjectPriority) || 'medium',
+      progress: (data.progress as number) || 0,
+      startDate: data.startDate as string | undefined,
+      targetDate: data.targetDate as string | undefined,
+      budget: data.budget as number | undefined,
+      tags: data.tags as string[] | undefined,
+      milestones: [],
+    }
+    if (editTarget) {
+      await projectService.updateProject(editTarget.id, base)
+    } else {
+      await projectService.addProject(base)
+    }
+    await reload()
+  }
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('确定要删除这个项目吗？')) return
+    await projectService.deleteProject(id)
+    await reload()
+  }
 
   const filtered = useMemo(() => {
     return projects.filter((p) => {
@@ -100,7 +180,7 @@ const ProjectListPage: React.FC = () => {
               </p>
             </div>
             <button
-              onClick={() => navigate('/projects/add')}
+              onClick={() => handleAdd()}
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium text-white transition-all duration-300 hover:scale-105"
               style={{ background: 'linear-gradient(135deg, #6366f1, #10b981)' }}
             >
@@ -199,7 +279,7 @@ const ProjectListPage: React.FC = () => {
           return (
             <div
               key={project.id}
-              className="glass-card p-5 anim-fade-in-up transition-all duration-300 hover:scale-[1.01] hover:shadow-lg"
+              className="glass-card p-5 anim-fade-in-up transition-all duration-300 hover:scale-[1.01] hover:shadow-lg group"
               style={{ animationDelay: `${index * 0.05}s` }}
             >
               <div className="flex items-start justify-between mb-3">
@@ -218,9 +298,25 @@ const ProjectListPage: React.FC = () => {
                     </p>
                   )}
                 </div>
-                <span className={`px-2.5 py-1 text-xs rounded-full font-medium ${sc.bg} ${sc.color} flex-shrink-0 ml-2`}>
-                  {sc.label}
-                </span>
+                <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
+                  <span className={`px-2.5 py-1 text-xs rounded-full font-medium ${sc.bg} ${sc.color}`}>
+                    {sc.label}
+                  </span>
+                  <button
+                    onClick={() => handleEdit(project)}
+                    className="p-1.5 rounded-lg transition-all hover:scale-110 opacity-0 group-hover:opacity-100"
+                    style={{ background: 'var(--pao-bg-hover)', color: 'var(--pao-text-secondary)' }}
+                  >
+                    <Edit className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(project.id)}
+                    className="p-1.5 rounded-lg transition-all hover:scale-110 text-red-500 opacity-0 group-hover:opacity-100"
+                    style={{ background: 'var(--pao-bg-hover)' }}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               </div>
 
               {/* Progress */}
@@ -287,6 +383,18 @@ const ProjectListPage: React.FC = () => {
           <p className="text-sm" style={{ color: 'var(--pao-text-secondary)' }}>暂无匹配的项目</p>
         </div>
       )}
+
+      {/* CRUD Modal */}
+      <EntityFormModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onSubmit={handleSubmit}
+        title={editTarget ? '编辑项目' : '新建项目'}
+        subtitle={editTarget ? '修改项目信息' : '创建新的项目'}
+        fields={projectFormFields}
+        initialData={editTarget ? (editTarget as unknown as Record<string, unknown>) : undefined}
+        accentGradient="linear-gradient(135deg, #6366f1, #10b981)"
+      />
     </div>
   )
 }
