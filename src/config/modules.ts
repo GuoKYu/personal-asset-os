@@ -10,7 +10,7 @@ export interface ModuleDefinition {
   icon: string;         // lucide-react icon name
   route: string;
   enabled: boolean;
-  sort_order: number;
+  sortOrder: number;
   description?: string;
 }
 
@@ -21,7 +21,7 @@ export const MODULES: ModuleDefinition[] = [
     icon: 'LayoutDashboard',
     route: '/',
     enabled: true,
-    sort_order: 1,
+    sortOrder: 1,
     description: '资产全景概览与核心指标',
   },
   {
@@ -30,7 +30,7 @@ export const MODULES: ModuleDefinition[] = [
     icon: 'Rocket',
     route: '/growth',
     enabled: true,
-    sort_order: 2,
+    sortOrder: 2,
     description: '成长路径与学习计划管理',
   },
   {
@@ -39,7 +39,7 @@ export const MODULES: ModuleDefinition[] = [
     icon: 'Shield',
     route: '/ip',
     enabled: true,
-    sort_order: 3,
+    sortOrder: 3,
     description: '专利、商标、著作权管理',
   },
   {
@@ -48,7 +48,7 @@ export const MODULES: ModuleDefinition[] = [
     icon: 'TrendingUp',
     route: '/finance',
     enabled: true,
-    sort_order: 4,
+    sortOrder: 4,
     description: '账户、持仓、交易与资产分析',
   },
   {
@@ -57,7 +57,7 @@ export const MODULES: ModuleDefinition[] = [
     icon: 'HeartPulse',
     route: '/insurance',
     enabled: true,
-    sort_order: 5,
+    sortOrder: 5,
     description: '保单管理与保障分析',
   },
   {
@@ -66,7 +66,7 @@ export const MODULES: ModuleDefinition[] = [
     icon: 'Activity',
     route: '/health',
     enabled: true,
-    sort_order: 6,
+    sortOrder: 6,
     description: '家庭成员与健康档案',
   },
   {
@@ -75,7 +75,7 @@ export const MODULES: ModuleDefinition[] = [
     icon: 'FileText',
     route: '/documents',
     enabled: true,
-    sort_order: 7,
+    sortOrder: 7,
     description: '文档与证书归档管理',
   },
   {
@@ -84,7 +84,7 @@ export const MODULES: ModuleDefinition[] = [
     icon: 'FolderKanban',
     route: '/projects',
     enabled: true,
-    sort_order: 8,
+    sortOrder: 8,
     description: '项目进度与里程碑追踪',
   },
   {
@@ -93,7 +93,7 @@ export const MODULES: ModuleDefinition[] = [
     icon: 'Settings',
     route: '/settings',
     enabled: true,
-    sort_order: 9,
+    sortOrder: 9,
     description: '模块配置、字段自定义与数据管理',
   },
 ];
@@ -107,17 +107,17 @@ export function getModuleByRoute(route: string): ModuleDefinition | undefined {
 }
 
 export function getEnabledModules(): ModuleDefinition[] {
-  return MODULES.filter((m) => m.enabled).sort((a, b) => a.sort_order - b.sort_order);
+  return MODULES.filter((m) => m.enabled).sort((a, b) => a.sortOrder - b.sortOrder);
 }
 
 export function getDefaultModuleConfigs(): ModuleConfig[] {
   return MODULES.map((m) => ({
     id: `cfg_${m.id}`,
-    module_id: m.id,
+    moduleId: m.id,
     enabled: m.enabled,
-    sort_order: m.sort_order,
-    custom_config: {},
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
+    sortOrder: m.sortOrder,
+    customConfig: {},
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
   }));
 }

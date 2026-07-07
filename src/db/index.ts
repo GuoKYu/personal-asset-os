@@ -51,28 +51,28 @@ export class PersonalAssetDB extends Dexie {
   constructor() {
     super('personalAssetOS');
 
-    // Version 1: Initial schema
-    this.version(1).stores({
-      assets: 'id, type, status, data_grade, created_at, updated_at',
-      financial_accounts: 'id, type, institution, currency, balance, status, data_grade, [type+institution]',
-      holdings: 'id, account_id, symbol, market, sector, status, data_grade, [account_id+symbol], [market+sector]',
-      transactions: 'id, account_id, holding_id, symbol, type, status, trade_date, [account_id+type], [symbol+trade_date]',
-      insurance_policies: 'id, type, insurer, insured_person, status, data_grade, end_date, [type+status]',
-      insurance_payments: 'id, policy_id, status, due_date, paid_date, [policy_id+status]',
-      ips: 'id, type, status, jurisdiction, data_grade, expiry_date, [type+status], [jurisdiction+type]',
-      certificates: 'id, category, status, data_grade, expiry_date, [category+status]',
-      growth_paths: 'id, status, career_stage, progress',
-      learning_plans: 'id, path_id, status, priority, progress, [path_id+status]',
+    // Version 2: Updated to camelCase field names
+    this.version(2).stores({
+      assets: 'id, type, status, dataGrade, createdAt, updatedAt',
+      financial_accounts: 'id, type, institution, currency, balance, status, dataGrade, [type+institution]',
+      holdings: 'id, accountId, symbol, market, sector, status, dataGrade, [accountId+symbol], [market+sector]',
+      transactions: 'id, accountId, holdingId, symbol, type, status, tradeDate, [accountId+type], [symbol+tradeDate]',
+      insurance_policies: 'id, type, insurer, insuredPerson, status, dataGrade, endDate, [type+status]',
+      insurance_payments: 'id, policyId, status, dueDate, paidDate, [policyId+status]',
+      ips: 'id, type, status, jurisdiction, dataGrade, expiryDate, [type+status], [jurisdiction+type]',
+      certificates: 'id, category, status, dataGrade, expiryDate, [category+status]',
+      growth_paths: 'id, status, careerStage, progress',
+      learning_plans: 'id, pathId, status, priority, progress, [pathId+status]',
       family_members: 'id, relationship, name',
-      health_records: 'id, member_id, type, status, date, [member_id+type], [member_id+date]',
-      documents: 'id, category_id, status, version, tags, [category_id+status]',
-      document_categories: 'id, parent_id, sort_order, [parent_id+sort_order]',
-      projects: 'id, status, priority, progress, target_date, [status+priority]',
-      modules: 'id, module_id, enabled, sort_order, [enabled+sort_order]',
-      field_defs: 'id, module_id, entity_type, field_key, sort_order, [module_id+entity_type], [entity_type+field_key]',
-      view_defs: 'id, module_id, entity_type, view_key, default_view, [module_id+entity_type], [entity_type+view_key]',
-      reminders: 'id, entity_type, entity_id, is_active, target_date, trigger_date, [is_active+target_date]',
-      audit_logs: 'id, entity_type, entity_id, action, created_at, [entity_type+entity_id], [entity_type+action]',
+      health_records: 'id, memberId, type, status, date, [memberId+type], [memberId+date]',
+      documents: 'id, categoryId, status, version, tags, [categoryId+status]',
+      document_categories: 'id, parentId, sortOrder, [parentId+sortOrder]',
+      projects: 'id, status, priority, progress, targetDate, [status+priority]',
+      modules: 'id, moduleId, enabled, sortOrder, [enabled+sortOrder]',
+      field_defs: 'id, moduleId, entityType, fieldKey, sortOrder, [moduleId+entityType], [entityType+fieldKey]',
+      view_defs: 'id, moduleId, entityType, viewKey, defaultView, [moduleId+entityType], [entityType+viewKey]',
+      reminders: 'id, entityType, entityId, isActive, targetDate, triggerDate, [isActive+targetDate]',
+      audit_logs: 'id, entityType, entityId, action, createdAt, [entityType+entityId], [entityType+action]',
     });
   }
 }
@@ -132,13 +132,13 @@ export async function writeAuditLog(
 ): Promise<string> {
   return await db.audit_logs.add({
     id: `log_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-    entity_type: entityType,
-    entity_id: entityId,
+    entityType,
+    entityId,
     action,
-    old_value: oldValue,
-    new_value: newValue,
-    changed_fields: changedFields,
+    oldValue,
+    newValue,
+    changedFields,
     operator: 'user',
-    created_at: new Date().toISOString(),
+    createdAt: new Date().toISOString(),
   });
 }

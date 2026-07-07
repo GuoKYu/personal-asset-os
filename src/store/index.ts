@@ -123,12 +123,12 @@ export const useModuleStore = create<ModuleState>()(
     (set, get) => ({
       modules: MODULES.map((m) => ({
         id: `cfg_${m.id}`,
-        module_id: m.id,
+        moduleId: m.id,
         enabled: m.enabled,
-        sort_order: m.sort_order,
-        custom_config: {},
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        sortOrder: m.sortOrder,
+        customConfig: {},
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       })),
       isLoading: false,
 
@@ -137,8 +137,8 @@ export const useModuleStore = create<ModuleState>()(
       toggleModule: (moduleId: string) =>
         set((state) => ({
           modules: state.modules.map((m) =>
-            m.module_id === moduleId
-              ? { ...m, enabled: !m.enabled, updated_at: new Date().toISOString() }
+            m.moduleId === moduleId
+              ? { ...m, enabled: !m.enabled, updatedAt: new Date().toISOString() }
               : m,
           ),
         })),
@@ -146,15 +146,15 @@ export const useModuleStore = create<ModuleState>()(
       setModuleEnabled: (moduleId: string, enabled: boolean) =>
         set((state) => ({
           modules: state.modules.map((m) =>
-            m.module_id === moduleId
-              ? { ...m, enabled, updated_at: new Date().toISOString() }
+            m.moduleId === moduleId
+              ? { ...m, enabled, updatedAt: new Date().toISOString() }
               : m,
           ),
         })),
 
       reorderModules: (moduleId: string, newSortOrder: number) =>
         set((state) => {
-          const oldIndex = state.modules.findIndex((m) => m.module_id === moduleId);
+          const oldIndex = state.modules.findIndex((m) => m.moduleId === moduleId);
           if (oldIndex === -1) return state;
 
           const newModules = [...state.modules];
@@ -162,16 +162,16 @@ export const useModuleStore = create<ModuleState>()(
 
           // Reorder all items
           const reordered = newModules
-            .filter((m) => m.module_id !== moduleId)
-            .sort((a, b) => a.sort_order - b.sort_order);
+            .filter((m) => m.moduleId !== moduleId)
+            .sort((a, b) => a.sortOrder - b.sortOrder);
 
           reordered.splice(newSortOrder, 0, moved);
 
-          // Update sort_order for all
+          // Update sortOrder for all
           const result = reordered.map((m, idx) => ({
             ...m,
-            sort_order: idx + 1,
-            updated_at: new Date().toISOString(),
+            sortOrder: idx + 1,
+            updatedAt: new Date().toISOString(),
           }));
 
           return { modules: result };
@@ -181,12 +181,12 @@ export const useModuleStore = create<ModuleState>()(
         const { modules } = get();
         return modules
           .filter((m) => m.enabled)
-          .sort((a, b) => a.sort_order - b.sort_order);
+          .sort((a, b) => a.sortOrder - b.sortOrder);
       },
 
       getModuleConfig: (moduleId: string) => {
         const { modules } = get();
-        return modules.find((m) => m.module_id === moduleId);
+        return modules.find((m) => m.moduleId === moduleId);
       },
 
       setLoading: (loading: boolean) => set({ isLoading: loading }),

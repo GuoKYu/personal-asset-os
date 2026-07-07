@@ -264,28 +264,28 @@ export interface IP {
   id: string;
   type: string;
   name: string;
-  data_grade: DataGrade;
-  created_at: string;
-  updated_at: string;
+  dataGrade: DataGrade;
+  createdAt: string;
+  updatedAt: string;
   notes?: string;
   tags?: string[];
-  ip_type: IPType;
+  ipType: IPType;
   title: string;
-  registration_no?: string;
+  registrationNo?: string;
   applicant: string;
   jurisdiction: string;
   status: IPStatus;
-  filing_date?: string;
-  grant_date?: string;
-  expiry_date?: string;
-  renewal_date?: string;
+  filingDate?: string;
+  grantDate?: string;
+  expiryDate?: string;
+  renewalDate?: string;
   description?: string;
   valuation?: number;
-  valuation_date?: string;
-  revenue_generated: number;
-  enforcement_actions?: string;
-  license_info?: string;
-  related_projects?: string[];
+  valuationDate?: string;
+  revenueGenerated: number;
+  enforcementActions?: string;
+  licenseInfo?: string;
+  relatedProjects?: string[];
   documents?: string[];
 }
 
@@ -293,23 +293,23 @@ export interface Certificate {
   id: string;
   type: string;
   name: string;
-  data_grade: DataGrade;
-  created_at: string;
-  updated_at: string;
+  dataGrade: DataGrade;
+  createdAt: string;
+  updatedAt: string;
   notes?: string;
   tags?: string[];
-  cert_name: string;
-  issuing_body: string;
+  certName: string;
+  issuingBody: string;
   category: string;
   status: CertificateStatus;
-  issue_date: string;
-  expiry_date?: string;
-  renewal_date?: string;
-  credential_id?: string;
-  verification_url?: string;
-  skill_tags?: string[];
+  issueDate: string;
+  expiryDate?: string;
+  renewalDate?: string;
+  credentialId?: string;
+  verificationUrl?: string;
+  skillTags?: string[];
   difficulty?: string;
-  study_hours?: number;
+  studyHours?: number;
   cost?: number;
 }
 
@@ -317,108 +317,108 @@ export interface GrowthPath {
   id: string;
   title: string;
   description?: string;
-  career_stage: string;
-  target_role?: string;
-  skills_gap?: string[];
+  careerStage: string;
+  targetRole?: string;
+  skillsGap?: string[];
   milestones?: string[];
   progress: number;
-  start_date?: string;
-  target_date?: string;
+  startDate?: string;
+  targetDate?: string;
   status: string;
-  created_at: string;
-  updated_at: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface LearningPlan {
   id: string;
-  path_id: string;
+  pathId: string;
   title: string;
   description?: string;
-  resource_type: string;
-  resource_url?: string;
+  resourceType: string;
+  resourceUrl?: string;
   status: LearningPlanStatus;
   priority: ProjectPriority;
   progress: number;
-  start_date?: string;
-  target_date?: string;
-  completed_date?: string;
-  skill_tags?: string[];
+  startDate?: string;
+  targetDate?: string;
+  completedDate?: string;
+  skillTags?: string[];
   notes?: string;
-  created_at: string;
-  updated_at: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface FamilyMember {
   id: string;
   name: string;
   relationship: string;
-  birth_date?: string;
+  birthDate?: string;
   gender?: string;
   occupation?: string;
-  emergency_contact?: boolean;
+  emergencyContact?: boolean;
   phone?: string;
   email?: string;
   address?: string;
   notes?: string;
-  created_at: string;
-  updated_at: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface HealthRecord {
   id: string;
-  member_id: string;
+  memberId: string;
   type: string;
   title: string;
   status: HealthStatus;
   date: string;
   detail?: string;
   attachments?: string[];
-  follow_up_date?: string;
+  followUpDate?: string;
   provider?: string;
   cost?: number;
-  insurance_claim?: boolean;
-  claim_id?: string;
+  insuranceClaim?: boolean;
+  claimId?: string;
   notes?: string;
-  created_at: string;
-  updated_at: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Document {
   id: string;
   title: string;
-  category_id?: string;
+  categoryId?: string;
   content?: string;
-  file_path?: string;
-  file_type?: string;
-  file_size?: number;
+  filePath?: string;
+  fileType?: string;
+  fileSize?: number;
   status: DocumentStatus;
   version: number;
   tags?: string[];
-  related_ids?: string[];
-  access_level?: string;
-  created_at: string;
-  updated_at: string;
+  relatedIds?: string[];
+  accessLevel?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface DocumentCategory {
   id: string;
   name: string;
-  parent_id?: string;
+  parentId?: string;
   icon?: string;
   color?: string;
-  sort_order: number;
+  sortOrder: number;
   description?: string;
-  created_at: string;
-  updated_at: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Project {
   id: string;
   type: string;
   name: string;
-  data_grade: DataGrade;
-  created_at: string;
-  updated_at: string;
+  dataGrade: DataGrade;
+  createdAt: string;
+  updatedAt: string;
   notes?: string;
   tags?: string[];
   title: string;
@@ -426,105 +426,105 @@ export interface Project {
   status: ProjectStatus;
   priority: ProjectPriority;
   progress: number;
-  start_date?: string;
-  target_date?: string;
-  completed_date?: string;
+  startDate?: string;
+  targetDate?: string;
+  completedDate?: string;
   budget?: number;
-  actual_cost?: number;
-  team_members?: string[];
+  actualCost?: number;
+  teamMembers?: string[];
   milestones?: Milestone[];
   deliverables?: string[];
   risks?: string[];
-  related_asset_ids?: string[];
+  relatedAssetIds?: string[];
 }
 
 export interface Milestone {
   id: string;
   title: string;
-  due_date: string;
+  dueDate: string;
   completed: boolean;
-  completed_date?: string;
+  completedDate?: string;
 }
 
 export interface Reminder {
   id: string;
   title: string;
   description?: string;
-  target_date: string;
-  trigger_date?: string;
-  trigger_type: string;
-  entity_type?: string;
-  entity_id?: string;
-  is_recurring: boolean;
-  recurring_config?: Record<string, unknown>;
-  is_active: boolean;
-  is_completed: boolean;
+  targetDate: string;
+  triggerDate?: string;
+  triggerType: string;
+  entityType?: string;
+  entityId?: string;
+  isRecurring: boolean;
+  recurringConfig?: Record<string, unknown>;
+  isActive: boolean;
+  isCompleted: boolean;
   priority: ProjectPriority;
-  notification_method?: string[];
-  created_at: string;
-  updated_at: string;
+  notificationMethod?: string[];
+  createdAt: string;
+  updatedAt: string;
 }
 
 // ── Module Configuration Types ──
 
 export interface ModuleConfig {
   id: string;
-  module_id: string;
+  moduleId: string;
   enabled: boolean;
-  sort_order: number;
-  custom_config?: Record<string, unknown>;
-  created_at: string;
-  updated_at: string;
+  sortOrder: number;
+  customConfig?: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface FieldDef {
   id: string;
-  module_id: string;
-  entity_type: string;
-  field_key: string;
-  field_label: string;
-  field_type: string;
+  moduleId: string;
+  entityType: string;
+  fieldKey: string;
+  fieldLabel: string;
+  fieldType: string;
   required: boolean;
   visible: boolean;
   editable: boolean;
-  default_value?: string;
-  validation_rule?: string;
-  sort_order: number;
-  group_key?: string;
-  help_text?: string;
+  defaultValue?: string;
+  validationRule?: string;
+  sortOrder: number;
+  groupKey?: string;
+  helpText?: string;
   options?: Record<string, unknown>;
-  created_at: string;
-  updated_at: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface ViewDef {
   id: string;
-  module_id: string;
-  entity_type: string;
-  view_key: string;
-  view_name: string;
-  view_type: string;
+  moduleId: string;
+  entityType: string;
+  viewKey: string;
+  viewName: string;
+  viewType: string;
   columns: string[];
   filters?: FilterConfig[];
   sort?: SortConfig[];
-  default_view: boolean;
-  created_at: string;
-  updated_at: string;
+  defaultView: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // ── Audit Log ──
 
 export interface AuditLog {
   id: string;
-  entity_type: string;
-  entity_id: string;
+  entityType: string;
+  entityId: string;
   action: string;
-  old_value?: Record<string, unknown>;
-  new_value?: Record<string, unknown>;
-  changed_fields?: string[];
+  oldValue?: Record<string, unknown>;
+  newValue?: Record<string, unknown>;
+  changedFields?: string[];
   operator: string;
-  ip_address?: string;
-  created_at: string;
+  ipAddress?: string;
+  createdAt: string;
 }
 
 // ── Query / Filter / Pagination Types ──
@@ -555,8 +555,8 @@ export interface PaginatedResult<T> {
   data: T[];
   total: number;
   page: number;
-  page_size: number;
-  total_pages: number;
+  pageSize: number;
+  totalPages: number;
 }
 
 // ── UI State Types ──
