@@ -1,197 +1,290 @@
-import React, { useState, useMemo } from 'react'
-import { Link } from 'react-router-dom'
+import React, { useState, useMemo, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Plus,
   Calendar,
   CheckCircle,
   Target,
   Clock,
-  Tag,
+  Search,
   BarChart3,
+  FolderKanban,
 } from 'lucide-react'
-import { mockProjects } from '@/db/mock-data'
+import { projectService } from '@/services/projectService'
+import type { Project } from '@/types'
 import { formatDate } from '@/utils/format'
-import { Breadcrumb, StatusTag, FilterSelect, SearchInput } from '@/components/ui'
+import ParticleBackground from '@/components/effects/ParticleBackground'
+
+const statusConfig: Record<string, { label: string; color: string; bg: string; bar: string }> = {
+  planning: { label: '规划中', color: 'text-amber-600', bg: 'bg-amber-500/10', bar: 'linear-gradient(90deg, #f59e0b, #fbbf24)' },
+  'in_progress': { label: '进行中', color: 'text-blue-600', bg: 'bg-blue-500/10', bar: 'linear-gradient(90deg, #6366f1, #06b6d4)' },
+  completed: { label: '已完成', color: 'text-green-600', bg: 'bg-green-500/10', bar: 'linear-gradient(90deg, #10b981, #34d399)' },
+  paused: { label: '已暂停', color: 'text-gray-600', bg: 'bg-gray-500/10', bar: 'linear-gradient(90deg, #9ca3af, #d1d5db)' },
+  cancelled: { label: '已取消', color: 'text-red-600', bg: 'bg-red-500/10', bar: 'linear-gradient(90deg, #ef4444, #f87171)' },
+}
+
+const typeLabel = (type: string) => {
+  const map: Record<string, string> = {
+    personal: '个人项目',
+    work: '工作项目',
+    study: '学习项目',
+    investment: '投资项目',
+  }
+  return map[type] || type
+}
 
 const ProjectListPage: React.FC = () => {
+  const navigate = useNavigate()
+  const [projects, setProjects] = useState<Project[]>([])
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const loadProjects = async () => {
+      try {
+        const data = await projectService.getProjects()
+        setProjects(data)
+      } catch (error) {
+        console.error('Failed to load projects:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadProjects()
+  }, [])
 
   const filtered = useMemo(() => {
-    return mockProjects.filter((p) => {
-      if (search && !p.name.includes(search) && !p.description.includes(search)) return false
+    return projects.filter((p) => {
+      if (search) {
+        const q = search.toLowerCase()
+        if (!p.title.toLowerCase().includes(q) && !(p.description ?? '').toLowerCase().includes(q)) return false
+      }
       if (typeFilter && p.type !== typeFilter) return false
       if (statusFilter && p.status !== statusFilter) return false
       return true
     })
-  }, [search, typeFilter, statusFilter])
+  }, [projects, search, typeFilter, statusFilter])
 
-  const completionRate = useMemo(() => {
-    return mockProjects.map((p) => {
-      const done = p.milestones.filter((m) => m.completed).length
-      return { ...p, done, rate: p.milestones.length > 0 ? Math.round((done / p.milestones.length) * 100) : 0 }
-    })
-  }, [])
-
-  const filteredWithRate = useMemo(() => {
-    const ids = new Set(filtered.map((p) => p.id))
-    return completionRate.filter((p) => ids.has(p.id))
-  }, [filtered, completionRate])
-
-  const typeLabel = (type: string) => {
-    const map: Record<string, string> = {
-      personal: '个人项目',
-      work: '工作项目',
-      study: '学习项目',
-      investment: '投资项目',
-    }
-    return map[type] || type
-  }
-
-  const typeColor = (type: string) => {
-    const map: Record<string, string> = {
-      personal: 'bg-blue-50 text-blue-600',
-      work: 'bg-purple-50 text-purple-600',
-      study: 'bg-green-50 text-green-600',
-      investment: 'bg-orange-50 text-orange-600',
-    }
-    return map[type] || 'bg-gray-50 text-gray-600'
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin h-8 w-8 border-2 border-blue-500 border-t-transparent rounded-full" />
+      </div>
+    )
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-6" aria-label="项目管理">
-      <Breadcrumb items={[
-        { label: '项目管理', href: '/projects' },
-        { label: '项目列表' },
-      ]} />
+    <div className="max-w-7xl mx-auto px-4 lg:px-8 py-6">
+      {/* Hero */}
+      <div
+        className="relative overflow-hidden rounded-2xl mb-6 anim-fade-in-down"
+        style={{
+          background: 'linear-gradient(135deg, rgba(99,102,241,0.12), rgba(16,185,129,0.08))',
+          border: '1px solid var(--glass-border)',
+          backdropFilter: 'blur(20px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+        }}
+      >
+        <ParticleBackground count={35} />
+        <div className="relative px-6 lg:px-8 py-6 lg:py-8">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h1 className="text-2xl lg:text-3xl font-bold mb-2" style={{ color: 'var(--pao-text-primary)' }}>
+                项目管理
+                <span className="gradient-text ml-2">Projects</span>
+              </h1>
+              <p style={{ color: 'var(--pao-text-secondary)' }}>
+                {filtered.length} 个项目 · 进行中 {filtered.filter(p => p.status === 'in_progress').length} 个
+              </p>
+            </div>
+            <button
+              onClick={() => navigate('/projects/add')}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium text-white transition-all duration-300 hover:scale-105"
+              style={{ background: 'linear-gradient(135deg, #6366f1, #10b981)' }}
+            >
+              <Plus className="h-4 w-4" />
+              新建项目
+            </button>
+          </div>
 
-      <div className="flex items-center justify-between mb-5">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">项目列表</h1>
-          <p className="text-sm text-gray-500 mt-1">{filtered.length} 个项目</p>
+          {/* Stats */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="glass-card p-4 anim-fade-in-up">
+              <div className="flex items-center gap-2 mb-1">
+                <FolderKanban className="h-4 w-4 text-blue-500" />
+                <span className="text-xs" style={{ color: 'var(--pao-text-secondary)' }}>总项目</span>
+              </div>
+              <div className="text-2xl font-bold gradient-text">{filtered.length}</div>
+            </div>
+            <div className="glass-card p-4 anim-fade-in-up" style={{ animationDelay: '0.05s' }}>
+              <div className="flex items-center gap-2 mb-1">
+                <Target className="h-4 w-4 text-green-500" />
+                <span className="text-xs" style={{ color: 'var(--pao-text-secondary)' }}>已完成</span>
+              </div>
+              <div className="text-2xl font-bold text-green-600">
+                {filtered.filter(p => p.status === 'completed').length}
+              </div>
+            </div>
+            <div className="glass-card p-4 anim-fade-in-up" style={{ animationDelay: '0.1s' }}>
+              <div className="flex items-center gap-2 mb-1">
+                <Clock className="h-4 w-4 text-blue-500" />
+                <span className="text-xs" style={{ color: 'var(--pao-text-secondary)' }}>进行中</span>
+              </div>
+              <div className="text-2xl font-bold text-blue-600">
+                {filtered.filter(p => p.status === 'in_progress').length}
+              </div>
+            </div>
+            <div className="glass-card p-4 anim-fade-in-up" style={{ animationDelay: '0.15s' }}>
+              <div className="flex items-center gap-2 mb-1">
+                <Calendar className="h-4 w-4 text-amber-500" />
+                <span className="text-xs" style={{ color: 'var(--pao-text-secondary)' }}>规划中</span>
+              </div>
+              <div className="text-2xl font-bold text-amber-600">
+                {filtered.filter(p => p.status === 'planning').length}
+              </div>
+            </div>
+          </div>
         </div>
-        <Link
-          to="/projects/add"
-          className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
-          aria-label="新建项目"
-        >
-          <Plus className="h-4 w-4" />
-          新建项目
-        </Link>
       </div>
 
       {/* Filters */}
-      <div className="flex items-center gap-3 mb-4">
-        <SearchInput value={search} onChange={setSearch} placeholder="搜索项目名称..." />
-        <FilterSelect
+      <div className="flex flex-wrap items-center gap-3 mb-5">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="搜索项目名称..."
+            className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm border"
+            style={{ background: 'var(--pao-bg-card)', borderColor: 'var(--pao-border)', color: 'var(--pao-text-primary)' }}
+          />
+        </div>
+        <select
           value={typeFilter}
-          onChange={setTypeFilter}
-          placeholder="全部类型"
-          options={[
-            { value: 'personal', label: '个人项目' },
-            { value: 'work', label: '工作项目' },
-            { value: 'study', label: '学习项目' },
-            { value: 'investment', label: '投资项目' },
-          ]}
-        />
-        <FilterSelect
+          onChange={(e) => setTypeFilter(e.target.value)}
+          className="px-4 py-2.5 rounded-xl text-sm border cursor-pointer"
+          style={{ background: 'var(--pao-bg-card)', borderColor: 'var(--pao-border)', color: 'var(--pao-text-primary)' }}
+        >
+          <option value="">全部类型</option>
+          <option value="personal">个人项目</option>
+          <option value="work">工作项目</option>
+          <option value="study">学习项目</option>
+          <option value="investment">投资项目</option>
+        </select>
+        <select
           value={statusFilter}
-          onChange={setStatusFilter}
-          placeholder="全部状态"
-          options={[
-            { value: 'planning', label: '规划中' },
-            { value: 'in-progress', label: '进行中' },
-            { value: 'completed', label: '已完成' },
-            { value: 'paused', label: '已暂停' },
-            { value: 'cancelled', label: '已取消' },
-          ]}
-        />
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="px-4 py-2.5 rounded-xl text-sm border cursor-pointer"
+          style={{ background: 'var(--pao-bg-card)', borderColor: 'var(--pao-border)', color: 'var(--pao-text-primary)' }}
+        >
+          <option value="">全部状态</option>
+          <option value="planning">规划中</option>
+          <option value="in-progress">进行中</option>
+          <option value="completed">已完成</option>
+          <option value="paused">已暂停</option>
+          <option value="cancelled">已取消</option>
+        </select>
       </div>
 
       {/* Project Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {filteredWithRate.map((project) => (
-          <div
-            key={project.id}
-            className="rounded-xl bg-white border border-gray-100 shadow-sm p-5 hover:shadow-md transition-shadow"
-            aria-label={`${project.name} 项目`}
-          >
-            <div className="flex items-start justify-between mb-3">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <h3 className="text-base font-semibold text-gray-900 truncate">{project.name}</h3>
-                  <span className={`inline-flex px-2 py-0.5 text-xs rounded font-medium ${typeColor(project.type)}`}>
-                    {typeLabel(project.type)}
-                  </span>
-                </div>
-                <p className="text-sm text-gray-500 line-clamp-2">{project.description}</p>
-              </div>
-              <StatusTag status={project.status} size="sm" />
-            </div>
-
-            {/* Progress */}
-            <div className="mb-3">
-              <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
-                <span>完成进度</span>
-                <span>{project.done}/{project.milestones.length} 里程碑</span>
-              </div>
-              <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                <div
-                  className={`h-full rounded-full transition-all ${
-                    project.status === 'completed' ? 'bg-green-500' : 'bg-blue-500'
-                  }`}
-                  style={{ width: `${project.rate}%` }}
-                />
-              </div>
-            </div>
-
-            {/* Milestones Preview */}
-            <div className="space-y-1 mb-3">
-              {project.milestones.slice(0, 3).map((ms, idx) => (
-                <div key={idx} className="flex items-center gap-2 text-xs">
-                  <CheckCircle className={`h-3 w-3 ${ms.completed ? 'text-green-500' : 'text-gray-300'}`} />
-                  <span className={ms.completed ? 'text-gray-500 line-through' : 'text-gray-600'}>
-                    {ms.title}
-                  </span>
-                  {ms.completed && ms.date && (
-                    <span className="text-gray-400 ml-auto">{formatDate(ms.date)}</span>
+        {filtered.map((project, index) => {
+          const sc = statusConfig[project.status] || statusConfig['in_progress']
+          const milestones = project.milestones || []
+          const doneCount = milestones.filter((m) => m.completed).length
+          const rate = milestones.length > 0 ? Math.round((doneCount / milestones.length) * 100) : project.progress
+          return (
+            <div
+              key={project.id}
+              className="glass-card p-5 anim-fade-in-up transition-all duration-300 hover:scale-[1.01] hover:shadow-lg"
+              style={{ animationDelay: `${index * 0.05}s` }}
+            >
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <h3 className="text-base font-semibold truncate" style={{ color: 'var(--pao-text-primary)' }}>
+                      {project.title}
+                    </h3>
+                    <span className="px-2 py-0.5 text-xs rounded font-medium" style={{ background: 'var(--pao-bg-hover)', color: 'var(--pao-text-secondary)' }}>
+                      {typeLabel(project.type)}
+                    </span>
+                  </div>
+                  {project.description && (
+                    <p className="text-sm line-clamp-2" style={{ color: 'var(--pao-text-secondary)' }}>
+                      {project.description}
+                    </p>
                   )}
                 </div>
-              ))}
-              {project.milestones.length > 3 && (
-                <div className="text-xs text-gray-400 pl-5">...还有 {project.milestones.length - 3} 个里程碑</div>
-              )}
-            </div>
+                <span className={`px-2.5 py-1 text-xs rounded-full font-medium ${sc.bg} ${sc.color} flex-shrink-0 ml-2`}>
+                  {sc.label}
+                </span>
+              </div>
 
-            {/* Footer */}
-            <div className="flex items-center justify-between pt-3 border-t border-gray-50">
-              <div className="flex items-center gap-1 text-xs text-gray-400">
-                <Calendar className="h-3 w-3" />
-                <span>{formatDate(project.startDate)}</span>
-                {project.endDate && (
-                  <>
-                    <span className="mx-1">-</span>
-                    <span>{formatDate(project.endDate)}</span>
-                  </>
+              {/* Progress */}
+              <div className="mb-3">
+                <div className="flex items-center justify-between text-xs mb-1" style={{ color: 'var(--pao-text-secondary)' }}>
+                  <span>完成进度</span>
+                  <span>{doneCount}/{milestones.length} 里程碑 · {rate}%</span>
+                </div>
+                <div className="h-2 rounded-full overflow-hidden" style={{ background: 'var(--pao-bg-hover)' }}>
+                  <div className="h-full rounded-full transition-all duration-500" style={{ width: `${rate}%`, background: sc.bar }} />
+                </div>
+              </div>
+
+              {/* Milestones Preview */}
+              {milestones.length > 0 && (
+                <div className="space-y-1 mb-3">
+                  {milestones.slice(0, 3).map((ms, idx) => (
+                    <div key={idx} className="flex items-center gap-2 text-xs">
+                      <CheckCircle className={`h-3 w-3 ${ms.completed ? 'text-green-500' : 'opacity-30'}`} style={!ms.completed ? { color: 'var(--pao-text-secondary)' } : {}} />
+                      <span style={{ color: ms.completed ? 'var(--pao-text-secondary)' : 'var(--pao-text-primary)' }} className={ms.completed ? 'line-through opacity-60' : ''}>
+                        {ms.title}
+                      </span>
+                      {ms.completed && ms.completedDate && (
+                        <span className="ml-auto opacity-50">{formatDate(ms.completedDate)}</span>
+                      )}
+                    </div>
+                  ))}
+                  {milestones.length > 3 && (
+                    <div className="text-xs pl-5" style={{ color: 'var(--pao-text-secondary)' }}>...还有 {milestones.length - 3} 个里程碑</div>
+                  )}
+                </div>
+              )}
+
+              {/* Footer */}
+              <div className="flex items-center justify-between pt-3 border-t" style={{ borderColor: 'var(--pao-border)' }}>
+                <div className="flex items-center gap-1 text-xs" style={{ color: 'var(--pao-text-secondary)' }}>
+                  <Calendar className="h-3 w-3" />
+                  <span>{project.startDate ? formatDate(project.startDate) : '--'}</span>
+                  {project.targetDate && (
+                    <>
+                      <span className="mx-1">→</span>
+                      <span>{formatDate(project.targetDate)}</span>
+                    </>
+                  )}
+                </div>
+                {project.tags && project.tags.length > 0 && (
+                  <div className="flex gap-1">
+                    {project.tags.slice(0, 2).map((tag) => (
+                      <span key={tag} className="px-1.5 py-0.5 text-[10px] rounded" style={{ background: 'var(--pao-bg-hover)', color: 'var(--pao-text-secondary)' }}>
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
                 )}
               </div>
-              <div className="flex flex-wrap gap-1">
-                {project.tags.map((tag) => (
-                  <span key={tag} className="px-1.5 py-0.5 text-[10px] rounded bg-gray-100 text-gray-500">
-                    {tag}
-                  </span>
-                ))}
-              </div>
             </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
 
       {filtered.length === 0 && (
-        <div className="text-center py-16 text-gray-400">
-          <BarChart3 className="h-12 w-12 mx-auto mb-4" />
-          <p className="text-sm">暂无匹配的项目</p>
+        <div className="text-center py-20">
+          <BarChart3 className="h-16 w-16 mx-auto mb-4 opacity-20" />
+          <p className="text-sm" style={{ color: 'var(--pao-text-secondary)' }}>暂无匹配的项目</p>
         </div>
       )}
     </div>

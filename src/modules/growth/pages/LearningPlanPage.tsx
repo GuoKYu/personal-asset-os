@@ -1,116 +1,205 @@
-import React, { useState, useMemo } from 'react'
-import { Link } from 'react-router-dom'
-import { Plus, BookOpen, Clock, Target, CheckCircle } from 'lucide-react'
-import { mockLearningPlans } from '@/db/mock-data'
+import React, { useState, useMemo, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import {
+  Plus,
+  BookOpen,
+  Clock,
+  Target,
+  Search,
+  GraduationCap,
+} from 'lucide-react'
+import { growthService } from '@/services/growthService'
+import type { LearningPlan } from '@/types'
 import { formatDate } from '@/utils/format'
-import { Breadcrumb, SearchInput, FilterSelect, StatusTag, Pagination as Pager } from '@/components/ui'
+import ParticleBackground from '@/components/effects/ParticleBackground'
+
+const statusConfig: Record<string, { label: string; color: string; bg: string; bar: string }> = {
+  'in_progress': { label: '进行中', color: 'text-blue-600', bg: 'bg-blue-500/10', bar: 'linear-gradient(90deg, #6366f1, #06b6d4)' },
+  planned: { label: '计划中', color: 'text-amber-600', bg: 'bg-amber-500/10', bar: 'linear-gradient(90deg, #f59e0b, #fbbf24)' },
+  completed: { label: '已完成', color: 'text-green-600', bg: 'bg-green-500/10', bar: 'linear-gradient(90deg, #10b981, #34d399)' },
+  dropped: { label: '已放弃', color: 'text-gray-600', bg: 'bg-gray-500/10', bar: 'linear-gradient(90deg, #9ca3af, #d1d5db)' },
+}
 
 const LearningPlanPage: React.FC = () => {
+  const navigate = useNavigate()
+  const [plans, setPlans] = useState<LearningPlan[]>([])
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
-  const [page, setPage] = useState(1)
-  const pageSize = 10
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const loadPlans = async () => {
+      try {
+        const data = await growthService.getLearningPlans()
+        setPlans(data)
+      } catch (error) {
+        console.error('Failed to load learning plans:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadPlans()
+  }, [])
 
   const filtered = useMemo(() => {
-    return mockLearningPlans.filter((p) => {
-      if (search && !p.title.includes(search) && !p.category.includes(search)) return false
+    return plans.filter((p) => {
+      if (search) {
+        const q = search.toLowerCase()
+        if (!p.title.toLowerCase().includes(q) && !(p.description ?? '').toLowerCase().includes(q)) return false
+      }
       if (statusFilter && p.status !== statusFilter) return false
       return true
     })
-  }, [search, statusFilter])
+  }, [plans, search, statusFilter])
 
-  const paged = filtered.slice((page - 1) * pageSize, page * pageSize)
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin h-8 w-8 border-2 border-blue-500 border-t-transparent rounded-full" />
+      </div>
+    )
+  }
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-6" aria-label="学习计划">
-      <Breadcrumb items={[
-        { label: '成长管理', href: '/growth' },
-        { label: '学习计划' },
-      ]} />
-
-      <div className="flex items-center justify-between mb-5">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">学习计划</h1>
-          <p className="text-sm text-gray-500 mt-1">{filtered.length} 个学习计划</p>
+    <div className="max-w-7xl mx-auto px-4 lg:px-8 py-6">
+      {/* Hero */}
+      <div
+        className="relative overflow-hidden rounded-2xl mb-6 anim-fade-in-down"
+        style={{
+          background: 'linear-gradient(135deg, rgba(99,102,241,0.12), rgba(16,185,129,0.08))',
+          border: '1px solid var(--glass-border)',
+          backdropFilter: 'blur(20px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+        }}
+      >
+        <ParticleBackground count={35} />
+        <div className="relative px-6 lg:px-8 py-6 lg:py-8">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl lg:text-3xl font-bold mb-2" style={{ color: 'var(--pao-text-primary)' }}>
+                学习计划
+                <span className="gradient-text ml-2">Learning Plans</span>
+              </h1>
+              <p style={{ color: 'var(--pao-text-secondary)' }}>
+                {filtered.length} 个学习计划 · 进行中 {filtered.filter(p => p.status === 'in_progress').length} 个
+              </p>
+            </div>
+            <button
+              onClick={() => navigate('/growth/learning/add')}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium text-white transition-all duration-300 hover:scale-105"
+              style={{ background: 'linear-gradient(135deg, #6366f1, #10b981)' }}
+            >
+              <Plus className="h-4 w-4" />
+              新增计划
+            </button>
+          </div>
         </div>
-        <Link
-          to="/growth/learning/add"
-          className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
-          aria-label="新增学习计划"
-        >
-          <Plus className="h-4 w-4" />
-          新增计划
-        </Link>
       </div>
 
       {/* Filters */}
-      <div className="flex items-center gap-3 mb-4">
-        <SearchInput value={search} onChange={setSearch} placeholder="搜索计划名称或分类..." />
-        <FilterSelect
+      <div className="flex flex-wrap items-center gap-3 mb-5">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="搜索计划名称..."
+            className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm border transition-all duration-300"
+            style={{ background: 'var(--pao-bg-card)', borderColor: 'var(--pao-border)', color: 'var(--pao-text-primary)' }}
+          />
+        </div>
+        <select
           value={statusFilter}
-          onChange={setStatusFilter}
-          placeholder="全部状态"
-          options={[
-            { value: 'in-progress', label: '进行中' },
-            { value: 'planned', label: '计划中' },
-            { value: 'completed', label: '已完成' },
-            { value: 'dropped', label: '已放弃' },
-          ]}
-        />
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="px-4 py-2.5 rounded-xl text-sm border cursor-pointer"
+          style={{ background: 'var(--pao-bg-card)', borderColor: 'var(--pao-border)', color: 'var(--pao-text-primary)' }}
+        >
+          <option value="">全部状态</option>
+          <option value="in_progress">进行中</option>
+          <option value="planned">计划中</option>
+          <option value="completed">已完成</option>
+          <option value="dropped">已放弃</option>
+        </select>
       </div>
 
       {/* Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-        {paged.map((plan) => (
-          <div key={plan.id} className="rounded-xl bg-white border border-gray-100 shadow-sm p-5 hover:shadow-md transition-shadow">
-            <div className="flex items-start justify-between mb-3">
-              <div>
-                <h3 className="text-base font-semibold text-gray-900">{plan.title}</h3>
-                <p className="text-xs text-gray-500 mt-0.5">{plan.category}</p>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {filtered.map((plan, index) => {
+          const sc = statusConfig[plan.status] || statusConfig.planned
+          return (
+            <div
+              key={plan.id}
+              className="glass-card p-5 anim-fade-in-up transition-all duration-300 hover:scale-[1.02] hover:shadow-xl"
+              style={{ animationDelay: `${index * 0.05}s` }}
+            >
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-sm font-semibold mb-1 line-clamp-1" style={{ color: 'var(--pao-text-primary)' }}>
+                    {plan.title}
+                  </h3>
+                  {plan.description && (
+                    <p className="text-xs line-clamp-2" style={{ color: 'var(--pao-text-secondary)' }}>
+                      {plan.description}
+                    </p>
+                  )}
+                </div>
+                <span className={`px-2.5 py-1 text-xs rounded-full font-medium ${sc.bg} ${sc.color} flex-shrink-0 ml-2`}>
+                  {sc.label}
+                </span>
               </div>
-              <StatusTag status={plan.status} size="sm" />
-            </div>
 
-            {/* Progress Bar */}
-            <div className="mb-3">
-              <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
-                <span>学习进度</span>
-                <span>{plan.progress}%</span>
+              {/* Progress */}
+              <div className="mb-3">
+                <div className="flex items-center justify-between text-xs mb-1" style={{ color: 'var(--pao-text-secondary)' }}>
+                  <span className="flex items-center gap-1">
+                    <Target className="h-3 w-3" />
+                    进度
+                  </span>
+                  <span className="font-medium">{plan.progress}%</span>
+                </div>
+                <div className="h-2 rounded-full overflow-hidden" style={{ background: 'var(--pao-bg-hover)' }}>
+                  <div className="h-full rounded-full transition-all duration-500" style={{ width: `${plan.progress}%`, background: sc.bar }} />
+                </div>
               </div>
-              <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                <div
-                  className={`h-full rounded-full transition-all duration-500 ${
-                    plan.status === 'completed' ? 'bg-green-500' :
-                    plan.status === 'dropped' ? 'bg-gray-400' : 'bg-blue-500'
-                  }`}
-                  style={{ width: `${plan.progress}%` }}
-                />
-              </div>
-            </div>
 
-            <div className="grid grid-cols-2 gap-y-2 text-xs text-gray-500">
-              <div className="flex items-center gap-1">
-                <BookOpen className="h-3 w-3" />
-                <span>{plan.platform}</span>
+              <div className="grid grid-cols-2 gap-y-2 text-xs" style={{ color: 'var(--pao-text-secondary)' }}>
+                <div className="flex items-center gap-1">
+                  <BookOpen className="h-3 w-3" />
+                  <span>{plan.resourceType || '学习'}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Clock className="h-3 w-3" />
+                  <span>{plan.targetDate ? formatDate(plan.targetDate) : '无截止日'}</span>
+                </div>
+                {plan.priority && (
+                  <div className="flex items-center gap-1">
+                    <GraduationCap className="h-3 w-3" />
+                    <span>优先级: {plan.priority}</span>
+                  </div>
+                )}
               </div>
-              <div className="flex items-center gap-1">
-                <Clock className="h-3 w-3" />
-                <span>{plan.completedHours}/{plan.estimatedHours}h</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <Target className="h-3 w-3" />
-                <span>{formatDate(plan.dueDate)}</span>
-              </div>
-            </div>
 
-            {plan.notes && (
-              <p className="text-xs text-gray-400 mt-3 line-clamp-2">{plan.notes}</p>
-            )}
-          </div>
-        ))}
+              {plan.skillTags && plan.skillTags.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-3 pt-3 border-t" style={{ borderColor: 'var(--pao-border)' }}>
+                  {plan.skillTags.slice(0, 3).map((tag) => (
+                    <span key={tag} className="px-2 py-0.5 text-[10px] rounded-full" style={{ background: 'var(--pao-bg-hover)', color: 'var(--pao-text-secondary)' }}>
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )
+        })}
       </div>
 
-      <Pager current={page} total={filtered.length} pageSize={pageSize} onChange={setPage} />
+      {filtered.length === 0 && (
+        <div className="text-center py-20">
+          <BookOpen className="h-16 w-16 mx-auto mb-4 opacity-20" />
+          <p className="text-sm" style={{ color: 'var(--pao-text-secondary)' }}>暂无学习计划</p>
+        </div>
+      )}
     </div>
   )
 }
