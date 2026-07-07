@@ -7,54 +7,54 @@ import { createBrowserRouter, Navigate } from 'react-router-dom';
 import type { RouteObject } from 'react-router-dom';
 
 // ── Layout ──
-import AppLayout from '../layouts/AppLayout';
+import AppLayout from '@/components/layout/AppLayout';
 
 // ── Lazy-loaded Page Components ──
-const Dashboard = lazy(() => import('../pages/dashboard/Dashboard'));
+const Dashboard = lazy(() => import('@/modules/dashboard/pages/DashboardPage'));
 
 // Finance
-const AccountList = lazy(() => import('../pages/finance/AccountList'));
-const HoldingList = lazy(() => import('../pages/finance/HoldingList'));
-const HoldingDetail = lazy(() => import('../pages/finance/HoldingDetail'));
-const TransactionList = lazy(() => import('../pages/finance/TransactionList'));
-const AssetAnalysis = lazy(() => import('../pages/finance/AssetAnalysis'));
+const AccountList = lazy(() => import('@/modules/finance/pages/AccountListPage'));
+const HoldingList = lazy(() => import('@/modules/finance/pages/HoldingListPage'));
+const HoldingDetail = lazy(() => import('@/modules/finance/pages/HoldingDetailPage'));
+const TransactionList = lazy(() => import('@/modules/finance/pages/TransactionListPage'));
+const AssetAnalysis = lazy(() => import('@/modules/finance/pages/AssetAnalysisPage'));
 
 // Insurance
-const PolicyList = lazy(() => import('../pages/insurance/PolicyList'));
-const PolicyDetail = lazy(() => import('../pages/insurance/PolicyDetail'));
-const CoverageAnalysis = lazy(() => import('../pages/insurance/CoverageAnalysis'));
+const PolicyList = lazy(() => import('@/modules/insurance/pages/PolicyListPage'));
+const PolicyDetail = lazy(() => import('@/modules/insurance/pages/PolicyDetailPage'));
+const CoverageAnalysis = lazy(() => import('@/modules/insurance/pages/CoverageAnalysisPage'));
 
 // IP
-const IPList = lazy(() => import('../pages/ip/IPList'));
-const IPDetail = lazy(() => import('../pages/ip/IPDetail'));
-const CertificatePage = lazy(() => import('../pages/ip/CertificatePage'));
+const IPList = lazy(() => import('@/modules/ip/pages/IPListPage'));
+const IPDetail = lazy(() => import('@/modules/ip/pages/IPDetailPage'));
+const CertificatePage = lazy(() => import('@/modules/ip/pages/CertificatePage'));
 
 // Growth
-const GrowthPath = lazy(() => import('../pages/growth/GrowthPath'));
-const LearningPlan = lazy(() => import('../pages/growth/LearningPlan'));
+const GrowthPath = lazy(() => import('@/modules/growth/pages/GrowthPathPage'));
+const LearningPlan = lazy(() => import('@/modules/growth/pages/LearningPlanPage'));
 
 // Health
-const FamilyMember = lazy(() => import('../pages/health/FamilyMember'));
-const HealthRecord = lazy(() => import('../pages/health/HealthRecord'));
+const FamilyMember = lazy(() => import('@/modules/health/pages/FamilyMemberPage'));
+const HealthRecord = lazy(() => import('@/modules/health/pages/HealthRecordPage'));
 
 // Documents
-const DocumentList = lazy(() => import('../pages/documents/DocumentList'));
+const DocumentList = lazy(() => import('@/modules/documents/pages/DocumentListPage'));
 
 // Projects
-const ProjectList = lazy(() => import('../pages/projects/ProjectList'));
+const ProjectList = lazy(() => import('@/modules/projects/pages/ProjectListPage'));
 
 // Settings
-const ModuleManage = lazy(() => import('../pages/settings/ModuleManage'));
-const FieldCustom = lazy(() => import('../pages/settings/FieldCustom'));
-const DataManage = lazy(() => import('../pages/settings/DataManage'));
+const ModuleManage = lazy(() => import('@/modules/settings/pages/ModuleManagePage'));
+const FieldCustom = lazy(() => import('@/modules/settings/pages/FieldCustomPage'));
+const DataManage = lazy(() => import('@/modules/settings/pages/DataManagePage'));
 
 // ── Loading Spinner ──
 function PageLoader() {
   return (
     <div className="flex items-center justify-center min-h-[400px]">
       <div className="flex flex-col items-center gap-3">
-        <div className="w-8 h-8 border-2 border-[var(--pmgo-primary)] border-t-transparent rounded-full animate-spin" />
-        <span className="text-sm text-[var(--pmgo-text-secondary)]">加载中...</span>
+        <div className="w-8 h-8 border-2 border-[var(--pao-primary)] border-t-transparent rounded-full animate-spin" />
+        <span className="text-sm" style={{ color: 'var(--pao-text-secondary)' }}>加载中...</span>
       </div>
     </div>
   );

@@ -184,11 +184,19 @@ export interface Holding extends Asset {
   price_updated_at?: string;
 }
 
-export interface Transaction extends Asset {
+export interface Transaction {
+  id: string;
+  type: string;
+  name: string;
+  data_grade: DataGrade;
+  created_at: string;
+  updated_at: string;
+  notes?: string;
+  tags?: string[];
   account_id: string;
   holding_id?: string;
   symbol?: string;
-  type: TransactionType;
+  transaction_type: TransactionType;
   status: TransactionStatus;
   quantity?: number;
   price?: number;
@@ -197,13 +205,20 @@ export interface Transaction extends Asset {
   currency: string;
   trade_date: string;
   settlement_date?: string;
-  notes?: string;
   source?: string;
   counterparty?: string;
 }
 
-export interface InsurancePolicy extends Asset {
-  type: InsuranceType;
+export interface InsurancePolicy {
+  id: string;
+  type: string;
+  name: string;
+  data_grade: DataGrade;
+  created_at: string;
+  updated_at: string;
+  notes?: string;
+  tags?: string[];
+  policy_type: InsuranceType;
   insurer: string;
   policy_number: string;
   insured_person: string;
@@ -241,8 +256,16 @@ export interface InsurancePayment {
   updated_at: string;
 }
 
-export interface IP extends Asset {
-  type: IPType;
+export interface IP {
+  id: string;
+  type: string;
+  name: string;
+  data_grade: DataGrade;
+  created_at: string;
+  updated_at: string;
+  notes?: string;
+  tags?: string[];
+  ip_type: IPType;
   title: string;
   registration_no?: string;
   applicant: string;
@@ -262,8 +285,16 @@ export interface IP extends Asset {
   documents?: string[];
 }
 
-export interface Certificate extends Asset {
+export interface Certificate {
+  id: string;
+  type: string;
   name: string;
+  data_grade: DataGrade;
+  created_at: string;
+  updated_at: string;
+  notes?: string;
+  tags?: string[];
+  cert_name: string;
   issuing_body: string;
   category: string;
   status: CertificateStatus;
@@ -276,7 +307,6 @@ export interface Certificate extends Asset {
   difficulty?: string;
   study_hours?: number;
   cost?: number;
-  notes?: string;
 }
 
 export interface GrowthPath {
@@ -378,7 +408,15 @@ export interface DocumentCategory {
   updated_at: string;
 }
 
-export interface Project extends Asset {
+export interface Project {
+  id: string;
+  type: string;
+  name: string;
+  data_grade: DataGrade;
+  created_at: string;
+  updated_at: string;
+  notes?: string;
+  tags?: string[];
   title: string;
   description?: string;
   status: ProjectStatus;
@@ -394,7 +432,6 @@ export interface Project extends Asset {
   deliverables?: string[];
   risks?: string[];
   related_asset_ids?: string[];
-  tags?: string[];
 }
 
 export interface Milestone {

@@ -2,19 +2,20 @@ import React from 'react'
 import { Link } from 'react-router-dom'
 import {
   TrendingUp,
-  Plus,
-  FilePlus,
   ShieldCheck,
   Award,
-  Upload,
   DollarSign,
   Briefcase,
-  FileText,
   Wallet,
+  FileText,
+  ArrowUpRight,
+  ArrowDownRight,
+  Sparkles,
 } from 'lucide-react'
 import { mockHoldings } from '@/db/mock-data'
-import { formatCurrency, formatPercent, formatDate, getGreeting, getTodayDate } from '@/utils/format'
+import { formatCurrency, formatPercent, getGreeting, getTodayDate } from '@/utils/format'
 import { StatCard, ProgressRing, ModuleProgressBar, DataGradeTag, StatusTag } from '@/components/ui'
+import ParticleBackground from '@/components/effects/ParticleBackground'
 
 const DashboardPage: React.FC = () => {
   const totalAssets = 856234
@@ -24,40 +25,62 @@ const DashboardPage: React.FC = () => {
   const stockPosition = 68
 
   const quickActions = [
-    { label: '新增交易', icon: <TrendingUp className="h-4 w-4" />, to: '/finance/transactions/add', color: 'bg-blue-50 text-blue-600' },
-    { label: '新增保单', icon: <ShieldCheck className="h-4 w-4" />, to: '/insurance/policies/add', color: 'bg-green-50 text-green-600' },
-    { label: '登记证书', icon: <Award className="h-4 w-4" />, to: '/ip/certificates/add', color: 'bg-purple-50 text-purple-600' },
-    { label: '上传文档', icon: <Upload className="h-4 w-4" />, to: '/documents/upload', color: 'bg-orange-50 text-orange-600' },
+    { label: '持仓管理', icon: <Briefcase className="h-4 w-4" />, to: '/finance/holdings', gradient: 'linear-gradient(135deg, #6366F1, #818CF8)' },
+    { label: '保险保障', icon: <ShieldCheck className="h-4 w-4" />, to: '/insurance/policies', gradient: 'linear-gradient(135deg, #10B981, #34D399)' },
+    { label: '知识产权', icon: <Award className="h-4 w-4" />, to: '/ip', gradient: 'linear-gradient(135deg, #8B5CF6, #A78BFA)' },
+    { label: '文档中心', icon: <FileText className="h-4 w-4" />, to: '/documents', gradient: 'linear-gradient(135deg, #F59E0B, #FBBF24)' },
   ]
 
   const moduleCompletion = [
-    { label: '金融资产', progress: 85, color: 'bg-blue-500' },
-    { label: '保险保障', progress: 72, color: 'bg-green-500' },
-    { label: '知识产权', progress: 90, color: 'bg-purple-500' },
-    { label: '成长路径', progress: 60, color: 'bg-orange-500' },
-    { label: '健康管理', progress: 45, color: 'bg-red-400' },
-    { label: '文档管理', progress: 78, color: 'bg-cyan-500' },
-    { label: '项目管理', progress: 55, color: 'bg-indigo-500' },
+    { label: '金融资产', progress: 85, color: 'linear-gradient(90deg, #6366F1, #818CF8)' },
+    { label: '保险保障', progress: 72, color: 'linear-gradient(90deg, #10B981, #34D399)' },
+    { label: '知识产权', progress: 90, color: 'linear-gradient(90deg, #8B5CF6, #A78BFA)' },
+    { label: '成长路径', progress: 60, color: 'linear-gradient(90deg, #F59E0B, #FBBF24)' },
+    { label: '健康管理', progress: 45, color: 'linear-gradient(90deg, #EF4444, #F87171)' },
+    { label: '文档管理', progress: 78, color: 'linear-gradient(90deg, #06B6D4, #22D3EE)' },
+    { label: '项目管理', progress: 55, color: 'linear-gradient(90deg, #6366F1, #8B5CF6)' },
   ]
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-6" aria-label="工作台">
-      {/* Welcome Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">
-          {getGreeting()}，欢迎回来
-        </h1>
-        <p className="text-sm text-gray-500 mt-1">{getTodayDate()}</p>
+    <div className="max-w-7xl mx-auto px-4 lg:px-8 py-6">
+      {/* Hero Section with Particle Background */}
+      <div
+        className="relative overflow-hidden rounded-2xl mb-6 anim-fade-in-down"
+        style={{
+          background: 'linear-gradient(135deg, rgba(99,102,241,0.12), rgba(139,92,246,0.08), rgba(6,182,212,0.06))',
+          border: '1px solid var(--glass-border)',
+          backdropFilter: 'blur(20px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+        }}
+      >
+        <ParticleBackground count={60} />
+        <div className="relative px-6 lg:px-8 py-8 lg:py-10">
+          <div className="flex items-center gap-2 mb-3">
+            <Sparkles className="w-4 h-4" style={{ color: 'var(--pao-primary)' }} />
+            <span className="text-sm font-medium" style={{ color: 'var(--pao-text-secondary)' }}>
+              {getTodayDate()}
+            </span>
+          </div>
+          <h1 className="text-3xl lg:text-4xl font-bold mb-2" style={{ color: 'var(--pao-text-primary)' }}>
+            {getGreeting()}，<span className="gradient-text">BTI</span>
+          </h1>
+          <p className="text-base" style={{ color: 'var(--pao-text-secondary)' }}>
+            你的个人资产全景视图 · 一切尽在掌握
+          </p>
+        </div>
       </div>
 
       {/* Stat Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <StatCard
           title="总资产"
           value={formatCurrency(totalAssets)}
           subValue={`较上月 ${formatPercent(totalReturnPercent, true)}`}
           subColor="text-green-600"
           icon={<DollarSign className="h-5 w-5" />}
+          trend={totalReturnPercent}
+          delay={0}
+          gradient="linear-gradient(135deg, #6366F1, #818CF8)"
         />
         <StatCard
           title="本月收益"
@@ -65,81 +88,117 @@ const DashboardPage: React.FC = () => {
           subValue={`月收益率 ${formatPercent(monthlyReturnPercent, true)}`}
           subColor="text-green-600"
           icon={<TrendingUp className="h-5 w-5" />}
+          trend={monthlyReturnPercent}
+          delay={0.08}
+          gradient="linear-gradient(135deg, #10B981, #34D399)"
         />
         <StatCard
           title="有效保单"
           value="3 张"
           subValue="总保额 ¥750万"
-          subColor="text-gray-500"
           icon={<ShieldCheck className="h-5 w-5" />}
+          delay={0.16}
+          gradient="linear-gradient(135deg, #06B6D4, #22D3EE)"
         />
         <StatCard
           title="知识产权"
           value="5 项"
           subValue="2项已授权 · 3项申请中"
-          subColor="text-gray-500"
           icon={<Award className="h-5 w-5" />}
+          delay={0.24}
+          gradient="linear-gradient(135deg, #8B5CF6, #A78BFA)"
         />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left - Holdings Table */}
-        <div className="lg:col-span-2">
-          <div className="rounded-xl bg-white border border-gray-100 shadow-sm overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-              <h2 className="text-base font-semibold text-gray-900 flex items-center gap-2">
-                <Briefcase className="h-4 w-4 text-blue-600" />
+        <div className="lg:col-span-2 anim-fade-in-up" style={{ animationDelay: '0.3s' }}>
+          <div className="glass-card overflow-hidden" style={{ borderRadius: 'var(--radius-lg)' }}>
+            {/* Table header */}
+            <div
+              className="flex items-center justify-between px-6 py-4"
+              style={{ borderBottom: '1px solid var(--pao-divider)' }}
+            >
+              <h2 className="text-base font-semibold flex items-center gap-2" style={{ color: 'var(--pao-text-primary)' }}>
+                <Briefcase className="h-4 w-4" style={{ color: 'var(--pao-primary)' }} />
                 持仓概览
               </h2>
               <Link
                 to="/finance/holdings"
-                className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                className="text-sm font-medium gradient-text hover:opacity-70 transition-opacity"
                 aria-label="查看全部持仓"
               >
-                查看全部
+                查看全部 →
               </Link>
             </div>
+
+            {/* Table */}
             <div className="overflow-x-auto">
               <table className="w-full text-sm" aria-label="持仓概览表格">
                 <thead>
-                  <tr className="bg-[#F8FAFC] text-gray-600 text-xs uppercase tracking-wider">
-                    <th className="px-5 py-3 text-left font-medium">标的</th>
-                    <th className="px-5 py-3 text-right font-medium">持仓数量</th>
-                    <th className="px-5 py-3 text-right font-medium">成本价</th>
-                    <th className="px-5 py-3 text-right font-medium">当前价</th>
-                    <th className="px-5 py-3 text-right font-medium">盈亏</th>
-                    <th className="px-5 py-3 text-center font-medium">状态</th>
-                    <th className="px-5 py-3 text-center font-medium">分级</th>
+                  <tr style={{ background: 'var(--pao-divider)' }}>
+                    <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--pao-text-tertiary)' }}>标的</th>
+                    <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--pao-text-tertiary)' }}>持仓</th>
+                    <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--pao-text-tertiary)' }}>成本</th>
+                    <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--pao-text-tertiary)' }}>现价</th>
+                    <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--pao-text-tertiary)' }}>盈亏</th>
+                    <th className="px-6 py-3 text-center text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--pao-text-tertiary)' }}>状态</th>
+                    <th className="px-6 py-3 text-center text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--pao-text-tertiary)' }}>分级</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {mockHoldings.slice(0, 3).map((holding) => {
+                <tbody>
+                  {mockHoldings.slice(0, 5).map((holding, idx) => {
                     const pnl = (holding.currentPrice - holding.costPrice) * holding.quantity
                     const pnlPercent = ((holding.currentPrice - holding.costPrice) / holding.costPrice) * 100
                     const nearStopLoss = holding.currentPrice <= holding.stopLossPrice * 1.08
+                    const isPositive = pnl >= 0
 
                     return (
                       <tr
                         key={holding.id}
-                        className={`hover:bg-gray-50 transition-colors ${nearStopLoss ? 'bg-orange-50/50' : ''}`}
+                        className="group transition-all duration-300 hover:bg-white/5"
+                        style={{
+                          borderBottom: '1px solid var(--pao-divider)',
+                          background: nearStopLoss ? 'rgba(245,158,11,0.05)' : undefined,
+                        }}
                       >
-                        <td className="px-5 py-3.5">
-                          <Link to={`/finance/holdings/${holding.id}`} className="hover:text-blue-600 font-medium text-gray-900">
+                        <td className="px-6 py-4">
+                          <Link
+                            to={`/finance/holdings/${holding.id}`}
+                            className="font-semibold hover:opacity-70 transition-opacity"
+                            style={{ color: 'var(--pao-text-primary)' }}
+                          >
                             {holding.symbol}
                           </Link>
-                          <div className="text-xs text-gray-500">{holding.name}</div>
+                          <div className="text-xs" style={{ color: 'var(--pao-text-tertiary)' }}>
+                            {holding.name}
+                          </div>
                         </td>
-                        <td className="px-5 py-3.5 text-right tabular-nums">{holding.quantity}</td>
-                        <td className="px-5 py-3.5 text-right tabular-nums">{formatCurrency(holding.costPrice)}</td>
-                        <td className="px-5 py-3.5 text-right tabular-nums">{formatCurrency(holding.currentPrice)}</td>
-                        <td className={`px-5 py-3.5 text-right tabular-nums font-medium ${pnl >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          <div>{pnl >= 0 ? '+' : ''}{formatCurrency(pnl)}</div>
-                          <div className="text-xs">{formatPercent(pnlPercent, true)}</div>
+                        <td className="px-6 py-4 text-right tabular-nums" style={{ color: 'var(--pao-text-secondary)' }}>
+                          {holding.quantity}
                         </td>
-                        <td className="px-5 py-3.5 text-center">
+                        <td className="px-6 py-4 text-right tabular-nums" style={{ color: 'var(--pao-text-secondary)' }}>
+                          {formatCurrency(holding.costPrice)}
+                        </td>
+                        <td className="px-6 py-4 text-right tabular-nums font-medium" style={{ color: 'var(--pao-text-primary)' }}>
+                          {formatCurrency(holding.currentPrice)}
+                        </td>
+                        <td className="px-6 py-4 text-right tabular-nums">
+                          <div
+                            className="font-semibold flex items-center justify-end gap-1"
+                            style={{ color: isPositive ? '#10B981' : '#EF4444' }}
+                          >
+                            {isPositive ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+                            {formatCurrency(Math.abs(pnl))}
+                          </div>
+                          <div className="text-xs" style={{ color: isPositive ? '#10B981' : '#EF4444', opacity: 0.7 }}>
+                            {formatPercent(pnlPercent, true)}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-center">
                           <StatusTag status={holding.status} size="sm" />
                         </td>
-                        <td className="px-5 py-3.5 text-center">
+                        <td className="px-6 py-4 text-center">
                           <DataGradeTag grade={holding.dataGrade} size="sm" />
                         </td>
                       </tr>
@@ -151,60 +210,91 @@ const DashboardPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Right - Position Ring + Quick Actions + Progress */}
-        <div className="space-y-4">
-          {/* Position Ring */}
-          <div className="rounded-xl bg-white border border-gray-100 shadow-sm p-5">
-            <h2 className="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <Wallet className="h-4 w-4 text-green-600" />
+        {/* Right Column */}
+        <div className="space-y-6">
+          {/* Position Distribution Ring */}
+          <div
+            className="glass-card p-6 anim-fade-in-up"
+            style={{ animationDelay: '0.36s' }}
+          >
+            <h2 className="text-sm font-semibold mb-4 flex items-center gap-2" style={{ color: 'var(--pao-text-primary)' }}>
+              <Wallet className="h-4 w-4" style={{ color: 'var(--pao-cyan)' }} />
               仓位分布
             </h2>
-            <div className="flex justify-center">
+            <div className="flex justify-center mb-4">
               <ProgressRing
                 progress={stockPosition}
                 size={140}
                 strokeWidth={10}
-                label=""
                 subLabel="股票仓位"
-                color="#3B82F6"
               />
             </div>
-            <div className="mt-3 text-center text-xs text-gray-500">
-              现金及等价物占比 {100 - stockPosition}%
+            <div className="flex items-center justify-between text-xs" style={{ color: 'var(--pao-text-tertiary)' }}>
+              <span className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full" style={{ background: 'var(--pao-primary)' }} />
+                股票 {stockPosition}%
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full" style={{ background: 'var(--pao-divider)' }} />
+                现金 {100 - stockPosition}%
+              </span>
             </div>
           </div>
 
           {/* Quick Actions */}
-          <div className="rounded-xl bg-white border border-gray-100 shadow-sm p-5">
-            <h2 className="text-sm font-semibold text-gray-900 mb-3">快捷操作</h2>
-            <div className="grid grid-cols-2 gap-2">
+          <div
+            className="glass-card p-6 anim-fade-in-up"
+            style={{ animationDelay: '0.42s' }}
+          >
+            <h2 className="text-sm font-semibold mb-4" style={{ color: 'var(--pao-text-primary)' }}>
+              快捷操作
+            </h2>
+            <div className="grid grid-cols-2 gap-3">
               {quickActions.map((action) => (
                 <Link
                   key={action.label}
                   to={action.to}
-                  className={`flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${action.color} hover:opacity-80`}
+                  className="group flex flex-col items-center gap-2 p-4 rounded-xl transition-all duration-300 hover:scale-105"
+                  style={{
+                    background: 'var(--pao-divider)',
+                    border: '1px solid var(--pao-border)',
+                  }}
                   aria-label={action.label}
                 >
-                  {action.icon}
-                  <span>{action.label}</span>
+                  <div
+                    className="w-10 h-10 rounded-xl flex items-center justify-center text-white transition-transform duration-300 group-hover:scale-110"
+                    style={{
+                      background: action.gradient,
+                      boxShadow: '0 4px 12px rgba(99,102,241,0.2)',
+                    }}
+                  >
+                    {action.icon}
+                  </div>
+                  <span className="text-xs font-medium" style={{ color: 'var(--pao-text-secondary)' }}>
+                    {action.label}
+                  </span>
                 </Link>
               ))}
             </div>
           </div>
 
           {/* Module Completion */}
-          <div className="rounded-xl bg-white border border-gray-100 shadow-sm p-5">
-            <h2 className="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <FileText className="h-4 w-4 text-indigo-600" />
+          <div
+            className="glass-card p-6 anim-fade-in-up"
+            style={{ animationDelay: '0.48s' }}
+          >
+            <h2 className="text-sm font-semibold mb-4 flex items-center gap-2" style={{ color: 'var(--pao-text-primary)' }}>
+              <FileText className="h-4 w-4" style={{ color: 'var(--pao-violet)' }} />
               模块完善度
             </h2>
             <div className="space-y-3">
-              {moduleCompletion.map((mod) => (
+              {moduleCompletion.map((mod, idx) => (
                 <ModuleProgressBar
                   key={mod.label}
                   label={mod.label}
                   progress={mod.progress}
                   color={mod.color}
+                  delay={idx}
                 />
               ))}
             </div>
