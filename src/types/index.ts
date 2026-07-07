@@ -139,9 +139,9 @@ export interface Asset {
   type: string;
   name: string;
   status: AssetStatus;
-  data_grade: DataGrade;
-  created_at: string;
-  updated_at: string;
+  dataGrade: DataGrade;
+  createdAt: string;
+  updatedAt: string;
   notes?: string;
   tags?: string[];
 }
@@ -149,62 +149,65 @@ export interface Asset {
 export interface FinancialAccount extends Asset {
   type: AccountType;
   institution: string;
-  account_number?: string;
+  accountNumber?: string;
   currency: string;
   balance: number;
-  balance_date: string;
-  auto_sync: boolean;
-  sync_config?: Record<string, unknown>;
+  balanceDate: string;
+  autoSync: boolean;
+  syncConfig?: Record<string, unknown>;
+  pnl?: number;
+  pnlPercent?: number;
 }
 
 export interface Holding extends Asset {
-  account_id: string;
+  accountId: string;
   symbol: string;
   name: string;
   market: string;
   quantity: number;
-  avg_cost: number;
-  current_price: number;
+  avgCost: number;
+  currentPrice: number;
   currency: string;
   sector?: string;
-  sub_sector?: string;
+  subSector?: string;
   exchange?: string;
-  lot_size?: number;
-  cost_basis: number;
-  market_value: number;
-  unrealized_pnl: number;
-  unrealized_pnl_pct: number;
-  realized_pnl: number;
-  dividend_received: number;
-  total_return: number;
-  total_return_pct: number;
-  first_buy_date?: string;
-  last_trade_date?: string;
-  price_source?: string;
-  price_updated_at?: string;
+  lotSize?: number;
+  costBasis: number;
+  marketValue: number;
+  unrealizedPnl: number;
+  unrealizedPnlPct: number;
+  realizedPnl: number;
+  dividendReceived: number;
+  totalReturn: number;
+  totalReturnPct: number;
+  firstBuyDate?: string;
+  lastTradeDate?: string;
+  priceSource?: string;
+  priceUpdatedAt?: string;
+  stopLossPrice?: number;
 }
 
 export interface Transaction {
   id: string;
   type: string;
   name: string;
-  data_grade: DataGrade;
-  created_at: string;
-  updated_at: string;
+  dataGrade: DataGrade;
+  createdAt: string;
+  updatedAt: string;
   notes?: string;
   tags?: string[];
-  account_id: string;
-  holding_id?: string;
+  accountId: string;
+  holdingId?: string;
   symbol?: string;
-  transaction_type: TransactionType;
+  transactionType: TransactionType;
   status: TransactionStatus;
   quantity?: number;
   price?: number;
   amount: number;
   fee: number;
   currency: string;
-  trade_date: string;
-  settlement_date?: string;
+  tradeDate: string;
+  settlementDate?: string;
   source?: string;
   counterparty?: string;
 }
@@ -213,47 +216,48 @@ export interface InsurancePolicy {
   id: string;
   type: string;
   name: string;
-  data_grade: DataGrade;
-  created_at: string;
-  updated_at: string;
+  dataGrade: DataGrade;
+  createdAt: string;
+  updatedAt: string;
   notes?: string;
   tags?: string[];
-  policy_type: InsuranceType;
+  policyType: InsuranceType;
   insurer: string;
-  policy_number: string;
-  insured_person: string;
-  premium_annual: number;
-  premium_total?: number;
-  coverage_amount: number;
-  coverage_detail?: string;
+  policyNumber: string;
+  insuredPerson: string;
+  premiumAnnual: number;
+  premiumTotal?: number;
+  coverageAmount: number;
+  coverageDetail?: string;
   deductible?: number;
-  start_date: string;
-  end_date: string;
-  payment_frequency: string;
-  renewal_type: string;
+  startDate: string;
+  endDate: string;
+  paymentFrequency: string;
+  renewalType: string;
   status: InsuranceStatus;
-  auto_renew: boolean;
-  agent_name?: string;
-  agent_contact?: string;
+  autoRenew: boolean;
+  agentName?: string;
+  agentContact?: string;
   beneficiary?: string;
-  rider_info?: string;
+  riderInfo?: string;
   exclusions?: string;
-  claim_count: number;
-  total_claim_amount: number;
-  remaining_coverage?: number;
+  claimCount: number;
+  totalClaimAmount: number;
+  remainingCoverage?: number;
+  nextPaymentDate?: string;
 }
 
 export interface InsurancePayment {
   id: string;
-  policy_id: string;
+  policyId: string;
   amount: number;
-  due_date: string;
-  paid_date?: string;
+  dueDate: string;
+  paidDate?: string;
   status: InsurancePaymentStatus;
-  receipt_no?: string;
+  receiptNo?: string;
   notes?: string;
-  created_at: string;
-  updated_at: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface IP {
