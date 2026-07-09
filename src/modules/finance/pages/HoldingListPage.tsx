@@ -61,7 +61,7 @@ const HoldingListPage: React.FC = () => {
       <div
         className="relative overflow-hidden rounded-2xl mb-6 anim-fade-in-down"
         style={{
-          background: 'linear-gradient(135deg, rgba(99,102,241,0.12), rgba(6,182,212,0.08))',
+          background: 'linear-gradient(135deg, var(--td-brand-color-light), var(--td-bg-color-container))',
           border: '1px solid var(--glass-border)',
           backdropFilter: 'blur(20px) saturate(180%)',
           WebkitBackdropFilter: 'blur(20px) saturate(180%)',
@@ -96,7 +96,7 @@ const HoldingListPage: React.FC = () => {
                 className="px-4 py-2 rounded-lg text-white font-medium flex items-center gap-2 hover:scale-105 transition-all duration-300"
                 style={{
                   background: 'linear-gradient(135deg, var(--pao-primary), var(--pao-primary-dark))',
-                  boxShadow: '0 4px 12px rgba(99,102,241,0.3)',
+                  boxShadow: '0 4px 12px var(--td-shadow-2)',
                 }}
                 aria-label="新增持仓"
               >

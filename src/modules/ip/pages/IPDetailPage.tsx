@@ -122,7 +122,7 @@ const IPDetailPage: React.FC = () => {
       <div
         className="relative overflow-hidden rounded-2xl mb-6 anim-fade-in-down"
         style={{
-          background: 'linear-gradient(135deg, rgba(99,102,241,0.12), rgba(6,182,212,0.08))',
+          background: 'linear-gradient(135deg, var(--td-brand-color-light), var(--td-bg-color-container))',
           border: '1px solid var(--glass-border)',
           backdropFilter: 'blur(20px) saturate(180%)',
           WebkitBackdropFilter: 'blur(20px) saturate(180%)',

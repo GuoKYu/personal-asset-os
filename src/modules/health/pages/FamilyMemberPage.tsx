@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import EntityFormModal, { type FormField } from '@/components/EntityFormModal'
 import {
   Plus,
   User,
@@ -16,6 +17,7 @@ const FamilyMemberPage: React.FC = () => {
   const navigate = useNavigate()
   const [members, setMembers] = useState<FamilyMember[]>([])
   const [loading, setLoading] = useState(true)
+  const [isFormOpen, setIsFormOpen] = useState(false)
 
   useEffect(() => {
     const loadMembers = async () => {
@@ -55,7 +57,7 @@ const FamilyMemberPage: React.FC = () => {
       <div
         className="relative overflow-hidden rounded-2xl mb-6 anim-fade-in-down"
         style={{
-          background: 'linear-gradient(135deg, rgba(239,68,68,0.10), rgba(99,102,241,0.08))',
+          background: 'linear-gradient(135deg, var(--td-brand-color-light), var(--td-bg-color-container))',
           border: '1px solid var(--glass-border)',
           backdropFilter: 'blur(20px) saturate(180%)',
           WebkitBackdropFilter: 'blur(20px) saturate(180%)',
@@ -72,9 +74,9 @@ const FamilyMemberPage: React.FC = () => {
               <p style={{ color: 'var(--pao-text-secondary)' }}>{members.length} 位家庭成员</p>
             </div>
             <button
-              onClick={() => navigate('/health/members/add')}
+              onClick={() => setIsFormOpen(true)}
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium text-white transition-all duration-300 hover:scale-105"
-              style={{ background: 'linear-gradient(135deg, #ef4444, #6366f1)' }}
+              style={{ background: 'linear-gradient(135deg, var(--pao-primary), var(--pao-violet))' }}
             >
               <Plus className="h-4 w-4" />
               添加成员
@@ -156,6 +158,32 @@ const FamilyMemberPage: React.FC = () => {
           <p className="text-sm" style={{ color: 'var(--pao-text-secondary)' }}>暂无家庭成员数据</p>
         </div>
       )}
+
+      <EntityFormModal
+        isOpen={isFormOpen}
+        onClose={() => setIsFormOpen(false)}
+        onSubmit={async (data) => {
+          await healthService.addFamilyMember(data as any);
+          const updated = await healthService.getFamilyMembers();
+          setMembers(updated);
+        }}
+        title="新增成员"
+        subtitle="添加家庭成员信息"
+        accentGradient="linear-gradient(135deg, var(--pao-primary), var(--pao-violet))"
+        fields={[
+          { key: 'name', label: '姓名', type: 'text', required: true, placeholder: '如：张小明' },
+          { key: 'relationship', label: '与本人关系', type: 'select', options: [
+            { value: 'self', label: '本人' }, { value: 'spouse', label: '配偶' },
+            { value: 'child', label: '子女' }, { value: 'parent', label: '父母' },
+            { value: 'sibling', label: '兄弟姐妹' }, { value: 'other', label: '其他' },
+          ]},
+          { key: 'gender', label: '性别', type: 'select', options: [
+            { value: 'male', label: '男' }, { value: 'female', label: '女' },
+          ]},
+          { key: 'birthday', label: '出生日期', type: 'date' },
+          { key: 'phone', label: '联系电话', type: 'text', placeholder: '选填' },
+        ]}
+      />
     </div>
   )
 }

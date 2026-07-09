@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import EntityFormModal, { type FormField } from '@/components/EntityFormModal'
 import {
   Plus,
   BookOpen,
@@ -14,18 +14,18 @@ import { formatDate } from '@/utils/format'
 import ParticleBackground from '@/components/effects/ParticleBackground'
 
 const statusConfig: Record<string, { label: string; color: string; bg: string; bar: string }> = {
-  'in_progress': { label: '进行中', color: 'text-blue-600', bg: 'bg-blue-500/10', bar: 'linear-gradient(90deg, #6366f1, #06b6d4)' },
-  planned: { label: '计划中', color: 'text-amber-600', bg: 'bg-amber-500/10', bar: 'linear-gradient(90deg, #f59e0b, #fbbf24)' },
-  completed: { label: '已完成', color: 'text-green-600', bg: 'bg-green-500/10', bar: 'linear-gradient(90deg, #10b981, #34d399)' },
-  dropped: { label: '已放弃', color: 'text-gray-600', bg: 'bg-gray-500/10', bar: 'linear-gradient(90deg, #9ca3af, #d1d5db)' },
+  'in_progress': { label: '进行中', color: 'text-blue-600', bg: 'bg-blue-500/10', bar: 'linear-gradient(90deg, var(--td-brand-color), var(--td-brand-color))' },
+  planned: { label: '计划中', color: 'text-amber-600', bg: 'bg-amber-500/10', bar: 'linear-gradient(90deg, var(--td-warning-color), var(--td-warning-color))' },
+  completed: { label: '已完成', color: 'text-green-600', bg: 'bg-green-500/10', bar: 'linear-gradient(90deg, var(--td-success-color), var(--td-success-color))' },
+  dropped: { label: '已放弃', color: 'text-gray-600', bg: 'bg-gray-500/10', bar: 'linear-gradient(90deg, var(--td-text-color-placeholder), var(--td-text-color-placeholder))' },
 }
 
 const LearningPlanPage: React.FC = () => {
-  const navigate = useNavigate()
   const [plans, setPlans] = useState<LearningPlan[]>([])
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [loading, setLoading] = useState(true)
+  const [isFormOpen, setIsFormOpen] = useState(false)
 
   useEffect(() => {
     const loadPlans = async () => {
@@ -66,7 +66,7 @@ const LearningPlanPage: React.FC = () => {
       <div
         className="relative overflow-hidden rounded-2xl mb-6 anim-fade-in-down"
         style={{
-          background: 'linear-gradient(135deg, rgba(99,102,241,0.12), rgba(16,185,129,0.08))',
+          background: 'linear-gradient(135deg, var(--td-brand-color-light), var(--td-bg-color-container))',
           border: '1px solid var(--glass-border)',
           backdropFilter: 'blur(20px) saturate(180%)',
           WebkitBackdropFilter: 'blur(20px) saturate(180%)',
@@ -85,9 +85,9 @@ const LearningPlanPage: React.FC = () => {
               </p>
             </div>
             <button
-              onClick={() => navigate('/growth/learning/add')}
+              onClick={() => setIsFormOpen(true)}
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium text-white transition-all duration-300 hover:scale-105"
-              style={{ background: 'linear-gradient(135deg, #6366f1, #10b981)' }}
+              style={{ background: 'linear-gradient(135deg, var(--pao-primary), var(--pao-violet))' }}
             >
               <Plus className="h-4 w-4" />
               新增计划
@@ -200,6 +200,31 @@ const LearningPlanPage: React.FC = () => {
           <p className="text-sm" style={{ color: 'var(--pao-text-secondary)' }}>暂无学习计划</p>
         </div>
       )}
+
+      <EntityFormModal
+        isOpen={isFormOpen}
+        onClose={() => setIsFormOpen(false)}
+        onSubmit={async (data) => {
+          await growthService.addLearningPlan(data as any);
+          const updated = await growthService.getLearningPlans();
+          setPlans(updated);
+        }}
+        title="新增学习计划"
+        subtitle="制定学习目标，系统管理您的成长路径"
+        accentGradient="linear-gradient(135deg, var(--pao-primary), var(--pao-violet))"
+        fields={[
+          { key: 'title', label: '计划名称', type: 'text', required: true, placeholder: '如：学习React19新特性' },
+          { key: 'description', label: '描述', type: 'textarea' },
+          { key: 'category', label: '分类', type: 'text', placeholder: '如：前端技术' },
+          { key: 'targetDate', label: '目标日期', type: 'date' },
+          { key: 'status', label: '状态', type: 'select', options: [
+            { value: 'active', label: '进行中' },
+            { value: 'completed', label: '已完成' },
+            { value: 'paused', label: '已暂停' },
+          ]},
+          { key: 'progress', label: '进度', type: 'number', min: 0, max: 100, defaultValue: 0 },
+        ]}
+      />
     </div>
   )
 }

@@ -1,8 +1,9 @@
-import { db, writeAuditLog } from '../db';
+import { db } from '@/lib/cloudbase';
+import { writeAuditLog, generateId, now, safeAdd , extractList } from "@/lib/cloudbaseCrud";
 import type { GrowthPath, LearningPlan, LearningPlanStatus, ProjectPriority } from '../types';
 
 /**
- * Growth Service — Dexie.js data layer for Growth module
+ * Growth Service — CloudBase NoSQL data layer for Growth module
  * 成长发展数据服务层 - 封装所有成长发展相关的数据库操作
  */
 export const growthService = {
@@ -18,25 +19,24 @@ export const growthService = {
     sortBy?: string;
     sortOrder?: 'asc' | 'desc';
   }): Promise<GrowthPath[]> {
-    let collection = db.growth_paths.toCollection();
+    const data = extractList(await db.collection('growth_paths').get());
+    let growthPaths = (data || []) as GrowthPath[];
 
     if (filters?.search) {
       const search = filters.search.toLowerCase();
-      collection = collection.filter(gp =>
+      growthPaths = growthPaths.filter(gp =>
         (gp.title?.toLowerCase().includes(search) || false) ||
         (gp.description?.toLowerCase().includes(search) || false)
       );
     }
 
     if (filters?.status) {
-      collection = collection.filter(gp => gp.status === filters.status);
+      growthPaths = growthPaths.filter(gp => gp.status === filters.status);
     }
 
     if (filters?.careerStage) {
-      collection = collection.filter(gp => gp.careerStage === filters.careerStage);
+      growthPaths = growthPaths.filter(gp => gp.careerStage === filters.careerStage);
     }
-
-    let growthPaths = await collection.toArray();
 
     // Sort
     if (filters?.sortBy) {
@@ -59,23 +59,24 @@ export const growthService = {
    * Get a single growth path by ID
    */
   async getGrowthPathById(id: string): Promise<GrowthPath | undefined> {
-    return await db.growth_paths.get(id);
+    const { data } = await db.collection('growth_paths').where({ id }).get();
+    return data?.[0] as GrowthPath | undefined;
   },
 
   /**
    * Add a new growth path
    */
   async addGrowthPath(growthPath: Omit<GrowthPath, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
-    const id = `gp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-    const now = new Date().toISOString();
+    const id = generateId('gp');
+    const ts = now();
     const newGrowthPath: GrowthPath = {
       ...growthPath,
       id,
-      createdAt: now,
-      updatedAt: now,
+      createdAt: ts,
+      updatedAt: ts,
     };
 
-    await db.growth_paths.add(newGrowthPath);
+    await safeAdd('growth_paths', newGrowthPath);
     await writeAuditLog('growth_path', id, 'create', undefined, newGrowthPath as unknown as Record<string, unknown>);
 
     return id;
@@ -85,16 +86,19 @@ export const growthService = {
    * Update an existing growth path
    */
   async updateGrowthPath(id: string, updates: Partial<GrowthPath>): Promise<void> {
-    const oldGrowthPath = await db.growth_paths.get(id);
+    const { data } = await db.collection('growth_paths').where({ id }).get();
+    const oldGrowthPath = data?.[0];
     if (!oldGrowthPath) throw new Error(`GrowthPath ${id} not found`);
 
-    const updatedGrowthPath: GrowthPath = {
-      ...oldGrowthPath,
+    const docId = (oldGrowthPath as any)._id;
+    const updatedFields = {
       ...updates,
-      updatedAt: new Date().toISOString(),
+      updatedAt: now(),
     };
 
-    await db.growth_paths.put(updatedGrowthPath);
+    await db.collection('growth_paths').doc(docId).update(updatedFields);
+
+    const updatedGrowthPath = { ...oldGrowthPath, ...updatedFields } as GrowthPath;
     await writeAuditLog('growth_path', id, 'update', oldGrowthPath as unknown as Record<string, unknown>, updatedGrowthPath as unknown as Record<string, unknown>);
   },
 
@@ -102,17 +106,20 @@ export const growthService = {
    * Delete a growth path
    */
   async deleteGrowthPath(id: string): Promise<void> {
-    const oldGrowthPath = await db.growth_paths.get(id);
+    const { data: pathData } = await db.collection('growth_paths').where({ id }).get();
+    const oldGrowthPath = pathData?.[0];
     if (!oldGrowthPath) throw new Error(`GrowthPath ${id} not found`);
 
     // Also delete related learning plans
-    const relatedPlans = await db.learning_plans.where('pathId').equals(id).toArray();
-    for (const plan of relatedPlans) {
-      await db.learning_plans.delete(plan.id);
-      await writeAuditLog('learning_plan', plan.id, 'delete', plan as unknown as Record<string, unknown>, undefined);
+    const { data: relatedPlans } = await db.collection('learning_plans').where({ pathId: id }).get();
+    for (const plan of (relatedPlans || [])) {
+      const planDocId = (plan as any)._id;
+      await db.collection('learning_plans').doc(planDocId).remove();
+      await writeAuditLog('learning_plan', (plan as any).id, 'delete', plan as unknown as Record<string, unknown>, undefined);
     }
 
-    await db.growth_paths.delete(id);
+    const pathDocId = (oldGrowthPath as any)._id;
+    await db.collection('growth_paths').doc(pathDocId).remove();
     await writeAuditLog('growth_path', id, 'delete', oldGrowthPath as unknown as Record<string, unknown>, undefined);
   },
 
@@ -129,29 +136,28 @@ export const growthService = {
     sortBy?: string;
     sortOrder?: 'asc' | 'desc';
   }): Promise<LearningPlan[]> {
-    let collection = db.learning_plans.toCollection();
+    const data = extractList(await db.collection('learning_plans').get());
+    let learningPlans = (data || []) as LearningPlan[];
 
     if (filters?.pathId) {
-      collection = collection.filter(lp => lp.pathId === filters.pathId);
+      learningPlans = learningPlans.filter(lp => lp.pathId === filters.pathId);
     }
 
     if (filters?.search) {
       const search = filters.search.toLowerCase();
-      collection = collection.filter(lp =>
+      learningPlans = learningPlans.filter(lp =>
         (lp.title?.toLowerCase().includes(search) || false) ||
         (lp.description?.toLowerCase().includes(search) || false)
       );
     }
 
     if (filters?.status) {
-      collection = collection.filter(lp => lp.status === filters.status);
+      learningPlans = learningPlans.filter(lp => lp.status === filters.status);
     }
 
     if (filters?.priority) {
-      collection = collection.filter(lp => lp.priority === filters.priority);
+      learningPlans = learningPlans.filter(lp => lp.priority === filters.priority);
     }
-
-    let learningPlans = await collection.toArray();
 
     // Sort
     if (filters?.sortBy) {
@@ -174,23 +180,24 @@ export const growthService = {
    * Get a single learning plan by ID
    */
   async getLearningPlanById(id: string): Promise<LearningPlan | undefined> {
-    return await db.learning_plans.get(id);
+    const { data } = await db.collection('learning_plans').where({ id }).get();
+    return data?.[0] as LearningPlan | undefined;
   },
 
   /**
    * Add a new learning plan
    */
   async addLearningPlan(learningPlan: Omit<LearningPlan, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
-    const id = `lp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-    const now = new Date().toISOString();
+    const id = generateId('lp');
+    const ts = now();
     const newLearningPlan: LearningPlan = {
       ...learningPlan,
       id,
-      createdAt: now,
-      updatedAt: now,
+      createdAt: ts,
+      updatedAt: ts,
     };
 
-    await db.learning_plans.add(newLearningPlan);
+    await safeAdd('learning_plans', newLearningPlan);
     await writeAuditLog('learning_plan', id, 'create', undefined, newLearningPlan as unknown as Record<string, unknown>);
 
     return id;
@@ -200,16 +207,19 @@ export const growthService = {
    * Update an existing learning plan
    */
   async updateLearningPlan(id: string, updates: Partial<LearningPlan>): Promise<void> {
-    const oldLearningPlan = await db.learning_plans.get(id);
+    const { data } = await db.collection('learning_plans').where({ id }).get();
+    const oldLearningPlan = data?.[0];
     if (!oldLearningPlan) throw new Error(`LearningPlan ${id} not found`);
 
-    const updatedLearningPlan: LearningPlan = {
-      ...oldLearningPlan,
+    const docId = (oldLearningPlan as any)._id;
+    const updatedFields = {
       ...updates,
-      updatedAt: new Date().toISOString(),
+      updatedAt: now(),
     };
 
-    await db.learning_plans.put(updatedLearningPlan);
+    await db.collection('learning_plans').doc(docId).update(updatedFields);
+
+    const updatedLearningPlan = { ...oldLearningPlan, ...updatedFields } as LearningPlan;
     await writeAuditLog('learning_plan', id, 'update', oldLearningPlan as unknown as Record<string, unknown>, updatedLearningPlan as unknown as Record<string, unknown>);
   },
 
@@ -217,10 +227,12 @@ export const growthService = {
    * Delete a learning plan
    */
   async deleteLearningPlan(id: string): Promise<void> {
-    const oldLearningPlan = await db.learning_plans.get(id);
+    const { data } = await db.collection('learning_plans').where({ id }).get();
+    const oldLearningPlan = data?.[0];
     if (!oldLearningPlan) throw new Error(`LearningPlan ${id} not found`);
 
-    await db.learning_plans.delete(id);
+    const docId = (oldLearningPlan as any)._id;
+    await db.collection('learning_plans').doc(docId).remove();
     await writeAuditLog('learning_plan', id, 'delete', oldLearningPlan as unknown as Record<string, unknown>, undefined);
   },
 
@@ -235,28 +247,31 @@ export const growthService = {
     completedPlans: number;
     inProgressPlans: number;
   }> {
-    const paths = await db.growth_paths.toArray();
-    const plans = await db.learning_plans.toArray();
+    const paths = extractList(await db.collection('growth_paths').get());
+    const plans = extractList(await db.collection('learning_plans').get());
+
+    const allPaths = (paths || []) as GrowthPath[];
+    const allPlans = (plans || []) as LearningPlan[];
 
     let totalPathProgress = 0;
-    for (const path of paths) {
+    for (const path of allPaths) {
       totalPathProgress += path.progress || 0;
     }
 
     let totalPlanProgress = 0;
     let completedPlans = 0;
     let inProgressPlans = 0;
-    for (const plan of plans) {
+    for (const plan of allPlans) {
       totalPlanProgress += plan.progress || 0;
       if (plan.status === 'completed') completedPlans++;
       if (plan.status === 'in_progress') inProgressPlans++;
     }
 
     return {
-      totalPaths: paths.length,
-      totalPlans: plans.length,
-      avgPathProgress: paths.length > 0 ? totalPathProgress / paths.length : 0,
-      avgPlanProgress: plans.length > 0 ? totalPlanProgress / plans.length : 0,
+      totalPaths: allPaths.length,
+      totalPlans: allPlans.length,
+      avgPathProgress: allPaths.length > 0 ? totalPathProgress / allPaths.length : 0,
+      avgPlanProgress: allPlans.length > 0 ? totalPlanProgress / allPlans.length : 0,
       completedPlans,
       inProgressPlans,
     };
@@ -269,28 +284,28 @@ export const growthService = {
     mockPaths: Omit<GrowthPath, 'id' | 'createdAt' | 'updatedAt'>[],
     mockPlans: Omit<LearningPlan, 'id' | 'createdAt' | 'updatedAt'>[],
   ): Promise<void> {
-    const existingPaths = await db.growth_paths.count();
-    if (existingPaths > 0) return; // Already seeded
+    const existingPaths = extractList(await db.collection('growth_paths').get());
+    if ((existingPaths || []).length > 0) return; // Already seeded
 
     for (const mock of mockPaths) {
-      const id = `gp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-      const now = new Date().toISOString();
-      await db.growth_paths.add({
+      const id = generateId('gp');
+      const ts = now();
+      await safeAdd('growth_paths', {
         ...mock,
         id,
-        createdAt: now,
-        updatedAt: now,
+        createdAt: ts,
+        updatedAt: ts,
       });
     }
 
     for (const mock of mockPlans) {
-      const id = `lp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-      const now = new Date().toISOString();
-      await db.learning_plans.add({
+      const id = generateId('lp');
+      const ts = now();
+      await safeAdd('learning_plans', {
         ...mock,
         id,
-        createdAt: now,
-        updatedAt: now,
+        createdAt: ts,
+        updatedAt: ts,
       });
     }
   },

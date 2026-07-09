@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import EntityFormModal, { type FormField } from '@/components/EntityFormModal'
 import {
   Plus,
   Activity,
@@ -42,8 +42,8 @@ const statusConfig: Record<string, { label: string; color: string; bg: string; b
 }
 
 const HealthRecordPage: React.FC = () => {
-  const navigate = useNavigate()
   const [records, setRecords] = useState<HealthRecord[]>([])
+  const [isFormOpen, setIsFormOpen] = useState(false)
   const [members, setMembers] = useState<FamilyMember[]>([])
   const [memberFilter, setMemberFilter] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
@@ -98,7 +98,7 @@ const HealthRecordPage: React.FC = () => {
       <div
         className="relative overflow-hidden rounded-2xl mb-6 anim-fade-in-down"
         style={{
-          background: 'linear-gradient(135deg, rgba(239,68,68,0.10), rgba(16,185,129,0.08))',
+          background: 'linear-gradient(135deg, var(--td-brand-color-light), var(--td-bg-color-container))',
           border: '1px solid var(--glass-border)',
           backdropFilter: 'blur(20px) saturate(180%)',
           WebkitBackdropFilter: 'blur(20px) saturate(180%)',
@@ -115,9 +115,9 @@ const HealthRecordPage: React.FC = () => {
               <p style={{ color: 'var(--pao-text-secondary)' }}>{filtered.length} 条记录</p>
             </div>
             <button
-              onClick={() => navigate('/health/records/add')}
+              onClick={() => setIsFormOpen(true)}
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium text-white transition-all duration-300 hover:scale-105"
-              style={{ background: 'linear-gradient(135deg, #ef4444, #10b981)' }}
+              style={{ background: 'linear-gradient(135deg, var(--pao-primary), var(--pao-violet))' }}
             >
               <Plus className="h-4 w-4" />
               添加记录
@@ -238,6 +238,40 @@ const HealthRecordPage: React.FC = () => {
           <p className="text-sm" style={{ color: 'var(--pao-text-secondary)' }}>暂无健康记录</p>
         </div>
       )}
+
+      <EntityFormModal
+        isOpen={isFormOpen}
+        onClose={() => setIsFormOpen(false)}
+        onSubmit={async (data) => {
+          await healthService.addHealthRecord(data as any);
+          const updated = await healthService.getHealthRecords();
+          setRecords(updated);
+        }}
+        title="新增健康记录"
+        subtitle="记录家庭成员的健康数据，随时追踪健康变化"
+        accentGradient="linear-gradient(135deg, var(--pao-primary), var(--pao-violet))"
+        fields={[
+          { key: 'type', label: '记录类型', type: 'select', required: true, options: [
+            { value: 'checkup', label: '体检' },
+            { value: 'vaccination', label: '疫苗接种' },
+            { value: 'medication', label: '用药记录' },
+            { value: 'chronic', label: '慢性病' },
+            { value: 'surgery', label: '手术' },
+            { value: 'other', label: '其他' },
+          ]},
+          { key: 'date', label: '日期', type: 'date', required: true },
+          { key: 'indicator', label: '指标名称', type: 'text', required: true, placeholder: '如：血压' },
+          { key: 'value', label: '指标数值', type: 'text', required: true, placeholder: '如：120' },
+          { key: 'unit', label: '单位', type: 'text', placeholder: '如：mmHg' },
+          { key: 'normalRange', label: '正常范围', type: 'text', placeholder: '如：90-140' },
+          { key: 'status', label: '状态', type: 'select', options: [
+            { value: 'normal', label: '正常' },
+            { value: 'abnormal', label: '异常' },
+            { value: 'pending', label: '待复查' },
+          ]},
+          { key: 'notes', label: '备注', type: 'textarea' },
+        ]}
+      />
     </div>
   )
 }

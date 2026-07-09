@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import {
   PieChart,
   Pie,
@@ -12,16 +12,64 @@ import {
   Tooltip,
   Legend,
 } from 'recharts'
-import { AlertTriangle, TrendingUp, TrendingDown, Shield } from 'lucide-react'
-import { mockHoldings, mockAccounts } from '@/db/mock-data'
+import { AlertTriangle, TrendingUp, TrendingDown, Shield, Loader2 } from 'lucide-react'
+import { holdingService } from '@/services/holdingService'
+import { accountService } from '@/services/accountService'
+import type { Holding, FinancialAccount } from '@/types'
 import { formatCurrency, formatPercent } from '@/utils/format'
 import { Breadcrumb, StatCard } from '@/components/ui'
 
-const PIE_COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6']
+// TDesign default chart palette (brand / success / warning / error / purple)
+const PIE_COLORS = ['#0052D9', '#00A870', '#ED7B2F', '#E34D59', '#834EC2']
 
 const AssetAnalysisPage: React.FC = () => {
+  const [holdings, setHoldings] = useState<Holding[]>([])
+  const [accounts, setAccounts] = useState<FinancialAccount[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        const [holdingsData, accountsData] = await Promise.all([
+          holdingService.getHoldings(),
+          accountService.getAccounts(),
+        ])
+        setHoldings(holdingsData)
+        setAccounts(accountsData)
+      } catch (err) {
+        console.error('Failed to fetch analysis data:', err)
+        setError('加载数据失败，请稍后重试')
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchData()
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="max-w-7xl mx-auto px-6 py-12 flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" style={{ color: 'var(--pao-primary)' }} />
+        <span className="ml-3 text-sm" style={{ color: 'var(--pao-text-tertiary)' }}>加载分析数据...</span>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-7xl mx-auto px-6 py-12 text-center">
+        <AlertTriangle className="h-12 w-12 mx-auto mb-4" style={{ color: 'var(--pao-rose)' }} />
+        <h2 className="text-lg font-medium" style={{ color: 'var(--pao-text-primary)' }}>数据加载失败</h2>
+        <p className="text-sm mt-1" style={{ color: 'var(--pao-text-tertiary)' }}>{error}</p>
+      </div>
+    )
+  }
+
   // Calculate position distribution
-  const positionData = mockHoldings.map((h) => ({
+  const positionData = holdings.map((h) => ({
     name: h.symbol,
     value: h.currentPrice * h.quantity,
     market: h.market,
@@ -37,13 +85,14 @@ const AssetAnalysisPage: React.FC = () => {
 
   // Concentration risk
   const totalValue = positionData.reduce((s, p) => s + p.value, 0)
-  const maxPosValue = Math.max(...positionData.map((p) => p.value))
+  const maxPosValue = positionData.length ? Math.max(...positionData.map((p) => p.value)) : 0
   const concentrationRatio = totalValue > 0 ? (maxPosValue / totalValue) * 100 : 0
 
   // Data grade distribution
   const gradeGroups: Record<string, number> = {}
-  mockHoldings.forEach((h) => {
-    gradeGroups[h.dataGrade] = (gradeGroups[h.dataGrade] || 0) + h.currentPrice * h.quantity
+  holdings.forEach((h) => {
+    const grade = h.dataGrade as string
+    gradeGroups[grade] = (gradeGroups[grade] || 0) + h.currentPrice * h.quantity
   })
   const gradeData = Object.entries(gradeGroups).map(([name, value]) => ({
     name: `${name}级`,
@@ -51,17 +100,17 @@ const AssetAnalysisPage: React.FC = () => {
     percent: totalValue > 0 ? ((value / totalValue) * 100).toFixed(1) : '0',
   }))
 
-  const totalPnl = mockHoldings.reduce((s, h) => s + (h.currentPrice - h.costPrice) * h.quantity, 0)
-  const totalCost = mockHoldings.reduce((s, h) => s + h.costPrice * h.quantity, 0)
+  const totalPnl = holdings.reduce((s, h) => s + (h.currentPrice - h.avgCost) * h.quantity, 0)
+  const totalCost = holdings.reduce((s, h) => s + h.avgCost * h.quantity, 0)
   const returnRate = totalCost > 0 ? (totalPnl / totalCost) * 100 : 0
-  const totalAssets = mockAccounts.reduce((s, a) => s + a.balance, 0)
+  const totalAssets = accounts.reduce((s, a) => s + a.balance, 0)
 
   // Leverage check
   const leverage = totalAssets > 0 ? (totalValue / totalAssets) : 0
 
-  const topHolding = mockHoldings.reduce((max: typeof mockHoldings[0] | null, h) => {
-    const v = h.currentPrice * h.quantity
+  const topHolding = holdings.reduce<Holding | null>((max, h) => {
     if (!max) return h
+    const v = h.currentPrice * h.quantity
     const maxV = max.currentPrice * max.quantity
     return v > maxV ? h : max
   }, null)
@@ -186,13 +235,13 @@ const AssetAnalysisPage: React.FC = () => {
             </div>
             <div className="p-4 rounded-lg" style={{ background: 'var(--pao-divider)' }}>
               <div className="text-xs mb-1" style={{ color: 'var(--pao-text-tertiary)' }}>持仓数量</div>
-              <div className="text-xl font-bold" style={{ color: 'var(--pao-text-primary)' }}>{mockHoldings.length}</div>
+              <div className="text-xl font-bold" style={{ color: 'var(--pao-text-primary)' }}>{holdings.length}</div>
               <div className="text-xs mt-0.5" style={{ color: 'var(--pao-text-tertiary)' }}>覆盖 {pieData.length} 个市场</div>
             </div>
             <div className="p-4 rounded-lg" style={{ background: 'var(--pao-divider)' }}>
               <div className="text-xs mb-1" style={{ color: 'var(--pao-text-tertiary)' }}>分散度评分</div>
               <div className="text-xl font-bold" style={{ color: 'var(--pao-primary)' }}>
-                {mockHoldings.length >= 5 ? '良好' : mockHoldings.length >= 3 ? '一般' : '不足'}
+                {holdings.length >= 5 ? '良好' : holdings.length >= 3 ? '一般' : '不足'}
               </div>
               <div className="text-xs mt-0.5" style={{ color: 'var(--pao-text-tertiary)' }}>建议5-8个标的</div>
             </div>

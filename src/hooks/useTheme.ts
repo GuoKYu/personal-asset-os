@@ -20,9 +20,13 @@ export function useTheme() {
       return mode;
     };
 
-    // Apply with smooth transition
+    // Apply with smooth transition (TDesign dark mode = theme-mode attribute)
     root.classList.add('theme-transition');
-    root.setAttribute('data-theme', resolveTheme(themeMode));
+    if (resolveTheme(themeMode) === 'dark') {
+      root.setAttribute('theme-mode', 'dark');
+    } else {
+      root.removeAttribute('theme-mode');
+    }
 
     // Remove transition class after animation completes
     const timer = setTimeout(() => {
@@ -38,10 +42,12 @@ export function useTheme() {
 
     const mql = window.matchMedia('(prefers-color-scheme: dark)');
     const handler = () => {
-      document.documentElement.setAttribute(
-        'data-theme',
-        mql.matches ? 'dark' : 'light',
-      );
+      const root = document.documentElement;
+      if (mql.matches) {
+        root.setAttribute('theme-mode', 'dark');
+      } else {
+        root.removeAttribute('theme-mode');
+      }
     };
     mql.addEventListener('change', handler);
     return () => mql.removeEventListener('change', handler);

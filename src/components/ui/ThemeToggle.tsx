@@ -29,10 +29,14 @@ export default function ThemeToggle({ compact = false, className, ...rest }: The
         onClick={() => setThemeMode(MODES[nextIndex].mode)}
         className={clsx(
           'relative w-9 h-9 flex items-center justify-center rounded-lg',
-          'glass hover:shadow-glow transition-all duration-300',
-          'focus-ring',
+          'border transition-all duration-300 focus-ring',
           className,
         )}
+        style={{
+          borderColor: 'var(--pao-border)',
+          background: 'var(--pao-bg-card)',
+          color: 'var(--pao-text-secondary)',
+        }}
         aria-label={`当前主题: ${MODES.find((m) => m.mode === themeMode)?.label}，点击切换`}
         {...rest}
       >
@@ -44,19 +48,20 @@ export default function ThemeToggle({ compact = false, className, ...rest }: The
 
   return (
     <div
-      className="relative flex items-center glass rounded-xl p-1 gap-0.5"
+      className="relative flex items-center rounded-lg border p-1 gap-0.5"
+      style={{ borderColor: 'var(--pao-border)', background: 'var(--pao-bg-card)' }}
       role="radiogroup"
       aria-label="主题模式"
       onMouseLeave={() => setHovered(-1)}
     >
       {/* Sliding indicator */}
       <div
-        className="absolute top-1 bottom-1 rounded-lg transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]"
+        className="absolute top-1 bottom-1 rounded-md transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]"
         style={{
           left: `${MODES.findIndex((m) => m.mode === themeMode) * (100 / MODES.length)}%`,
           width: `calc(${100 / MODES.length}% - 2px)`,
-          background: 'linear-gradient(135deg, var(--pao-primary), var(--pao-violet))',
-          opacity: 0.15,
+          background: 'var(--pao-primary)',
+          opacity: 0.12,
         }}
       />
       {MODES.map((item, idx) => {
@@ -73,13 +78,13 @@ export default function ThemeToggle({ compact = false, className, ...rest }: The
             onClick={() => setThemeMode(item.mode)}
             onMouseEnter={() => setHovered(idx)}
             className={clsx(
-              'relative z-10 flex items-center justify-center rounded-lg transition-all duration-300',
+              'relative z-10 flex items-center justify-center rounded-md transition-all duration-300',
               compact ? 'w-8 h-8' : 'w-9 h-8',
-              isActive ? 'text-white' : 'hover:scale-110',
+              isActive ? 'text-white' : 'hover:scale-105',
             )}
             style={
               isActive
-                ? { background: 'linear-gradient(135deg, var(--pao-primary), var(--pao-violet))' }
+                ? { background: 'var(--pao-primary)', color: '#fff' }
                 : { color: hovered === idx ? 'var(--pao-primary)' : 'var(--pao-text-tertiary)' }
             }
           >

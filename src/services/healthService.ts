@@ -1,51 +1,62 @@
-import { db, writeAuditLog } from '../db';
+import { db } from '@/lib/cloudbase';
+import { writeAuditLog, generateId, now, safeAdd , extractList } from "@/lib/cloudbaseCrud";
 import type { FamilyMember, HealthRecord, HealthStatus } from '../types';
 
 /**
- * Health Service — Dexie.js data layer for Health module
+ * Health Service — CloudBase NoSQL data layer for Health module
  * 健康档案数据服务层 - 封装所有健康档案相关的数据库操作
  */
 export const healthService = {
+  // ── 内部辅助 ──
+
+  /** 按业务 id 查找文档的 CloudBase _id */
+  async _getDocId(collection: string, id: string): Promise<string | undefined> {
+    const { data } = await db.collection(collection).where({ id }).get();
+    return (data?.[0] as any)?._id;
+  },
+
   // ── FamilyMember methods ──
 
   /**
    * Get all family members
    */
   async getFamilyMembers(search?: string): Promise<FamilyMember[]> {
-    let collection = db.family_members.toCollection();
+    const data = extractList(await db.collection('family_members').get());
+    let members = (data || []) as FamilyMember[];
 
     if (search) {
       const q = search.toLowerCase();
-      collection = collection.filter(m =>
+      members = members.filter(m =>
         (m.name?.toLowerCase().includes(q) || false) ||
         (m.relationship?.toLowerCase().includes(q) || false)
       );
     }
 
-    return await collection.toArray();
+    return members;
   },
 
   /**
    * Get a single family member by ID
    */
   async getFamilyMemberById(id: string): Promise<FamilyMember | undefined> {
-    return await db.family_members.get(id);
+    const { data } = await db.collection('family_members').where({ id }).get();
+    return data?.[0] as FamilyMember | undefined;
   },
 
   /**
    * Add a new family member
    */
   async addFamilyMember(member: Omit<FamilyMember, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
-    const id = `member_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-    const now = new Date().toISOString();
+    const id = generateId('member');
+    const ts = now();
     const newMember: FamilyMember = {
       ...member,
       id,
-      createdAt: now,
-      updatedAt: now,
+      createdAt: ts,
+      updatedAt: ts,
     };
 
-    await db.family_members.add(newMember);
+    await safeAdd('family_members', newMember);
     await writeAuditLog('family_member', id, 'create', undefined, newMember as unknown as Record<string, unknown>);
 
     return id;
@@ -55,16 +66,19 @@ export const healthService = {
    * Update an existing family member
    */
   async updateFamilyMember(id: string, updates: Partial<FamilyMember>): Promise<void> {
-    const oldMember = await db.family_members.get(id);
+    const { data } = await db.collection('family_members').where({ id }).get();
+    const oldMember = data?.[0];
     if (!oldMember) throw new Error(`FamilyMember ${id} not found`);
 
-    const updatedMember: FamilyMember = {
-      ...oldMember,
+    const docId = (oldMember as any)._id;
+    const updatedFields = {
       ...updates,
-      updatedAt: new Date().toISOString(),
+      updatedAt: now(),
     };
 
-    await db.family_members.put(updatedMember);
+    await db.collection('family_members').doc(docId).update(updatedFields);
+
+    const updatedMember = { ...oldMember, ...updatedFields } as FamilyMember;
     await writeAuditLog('family_member', id, 'update', oldMember as unknown as Record<string, unknown>, updatedMember as unknown as Record<string, unknown>);
   },
 
@@ -72,17 +86,20 @@ export const healthService = {
    * Delete a family member
    */
   async deleteFamilyMember(id: string): Promise<void> {
-    const oldMember = await db.family_members.get(id);
+    const { data: memberData } = await db.collection('family_members').where({ id }).get();
+    const oldMember = memberData?.[0];
     if (!oldMember) throw new Error(`FamilyMember ${id} not found`);
 
     // Also delete related health records
-    const relatedRecords = await db.health_records.where('memberId').equals(id).toArray();
-    for (const record of relatedRecords) {
-      await db.health_records.delete(record.id);
-      await writeAuditLog('health_record', record.id, 'delete', record as unknown as Record<string, unknown>, undefined);
+    const { data: relatedRecords } = await db.collection('health_records').where({ memberId: id }).get();
+    for (const record of (relatedRecords || [])) {
+      const recordDocId = (record as any)._id;
+      await db.collection('health_records').doc(recordDocId).remove();
+      await writeAuditLog('health_record', (record as any).id, 'delete', record as unknown as Record<string, unknown>, undefined);
     }
 
-    await db.family_members.delete(id);
+    const memberDocId = (oldMember as any)._id;
+    await db.collection('family_members').doc(memberDocId).remove();
     await writeAuditLog('family_member', id, 'delete', oldMember as unknown as Record<string, unknown>, undefined);
   },
 
@@ -99,29 +116,28 @@ export const healthService = {
     sortBy?: string;
     sortOrder?: 'asc' | 'desc';
   }): Promise<HealthRecord[]> {
-    let collection = db.health_records.toCollection();
+    const data = extractList(await db.collection('health_records').get());
+    let healthRecords = (data || []) as HealthRecord[];
 
     if (filters?.memberId) {
-      collection = collection.filter(hr => hr.memberId === filters.memberId);
+      healthRecords = healthRecords.filter(hr => hr.memberId === filters.memberId);
     }
 
     if (filters?.search) {
       const search = filters.search.toLowerCase();
-      collection = collection.filter(hr =>
+      healthRecords = healthRecords.filter(hr =>
         (hr.title?.toLowerCase().includes(search) || false) ||
         (hr.detail?.toLowerCase().includes(search) || false)
       );
     }
 
     if (filters?.type) {
-      collection = collection.filter(hr => hr.type === filters.type);
+      healthRecords = healthRecords.filter(hr => hr.type === filters.type);
     }
 
     if (filters?.status) {
-      collection = collection.filter(hr => hr.status === filters.status);
+      healthRecords = healthRecords.filter(hr => hr.status === filters.status);
     }
-
-    let healthRecords = await collection.toArray();
 
     // Sort
     if (filters?.sortBy) {
@@ -144,23 +160,24 @@ export const healthService = {
    * Get a single health record by ID
    */
   async getHealthRecordById(id: string): Promise<HealthRecord | undefined> {
-    return await db.health_records.get(id);
+    const { data } = await db.collection('health_records').where({ id }).get();
+    return data?.[0] as HealthRecord | undefined;
   },
 
   /**
    * Add a new health record
    */
   async addHealthRecord(record: Omit<HealthRecord, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
-    const id = `hr_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-    const now = new Date().toISOString();
+    const id = generateId('hr');
+    const ts = now();
     const newRecord: HealthRecord = {
       ...record,
       id,
-      createdAt: now,
-      updatedAt: now,
+      createdAt: ts,
+      updatedAt: ts,
     };
 
-    await db.health_records.add(newRecord);
+    await safeAdd('health_records', newRecord);
     await writeAuditLog('health_record', id, 'create', undefined, newRecord as unknown as Record<string, unknown>);
 
     return id;
@@ -170,16 +187,19 @@ export const healthService = {
    * Update an existing health record
    */
   async updateHealthRecord(id: string, updates: Partial<HealthRecord>): Promise<void> {
-    const oldRecord = await db.health_records.get(id);
+    const { data } = await db.collection('health_records').where({ id }).get();
+    const oldRecord = data?.[0];
     if (!oldRecord) throw new Error(`HealthRecord ${id} not found`);
 
-    const updatedRecord: HealthRecord = {
-      ...oldRecord,
+    const docId = (oldRecord as any)._id;
+    const updatedFields = {
       ...updates,
-      updatedAt: new Date().toISOString(),
+      updatedAt: now(),
     };
 
-    await db.health_records.put(updatedRecord);
+    await db.collection('health_records').doc(docId).update(updatedFields);
+
+    const updatedRecord = { ...oldRecord, ...updatedFields } as HealthRecord;
     await writeAuditLog('health_record', id, 'update', oldRecord as unknown as Record<string, unknown>, updatedRecord as unknown as Record<string, unknown>);
   },
 
@@ -187,10 +207,12 @@ export const healthService = {
    * Delete a health record
    */
   async deleteHealthRecord(id: string): Promise<void> {
-    const oldRecord = await db.health_records.get(id);
+    const { data } = await db.collection('health_records').where({ id }).get();
+    const oldRecord = data?.[0];
     if (!oldRecord) throw new Error(`HealthRecord ${id} not found`);
 
-    await db.health_records.delete(id);
+    const docId = (oldRecord as any)._id;
+    await db.collection('health_records').doc(docId).remove();
     await writeAuditLog('health_record', id, 'delete', oldRecord as unknown as Record<string, unknown>, undefined);
   },
 
@@ -204,13 +226,13 @@ export const healthService = {
     byType: Record<string, number>;
     recentRecords: HealthRecord[];
   }> {
-    const members = await db.family_members.toArray();
-    const records = await db.health_records.toArray();
+    const members = extractList(await db.collection('family_members').get());
+    const records = extractList(await db.collection('health_records').get());
 
     const byStatus: Record<string, number> = {};
     const byType: Record<string, number> = {};
 
-    for (const record of records) {
+    for (const record of (records || []) as HealthRecord[]) {
       // Count by status
       byStatus[record.status] = (byStatus[record.status] || 0) + 1;
 
@@ -219,13 +241,14 @@ export const healthService = {
     }
 
     // Get recent records (last 10)
-    const recentRecords = records
+    const allRecords = (records || []) as HealthRecord[];
+    const recentRecords = allRecords
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
       .slice(0, 10);
 
     return {
-      totalMembers: members.length,
-      totalRecords: records.length,
+      totalMembers: (members || []).length,
+      totalRecords: allRecords.length,
       byStatus,
       byType,
       recentRecords,
@@ -239,28 +262,28 @@ export const healthService = {
     mockMembers: Omit<FamilyMember, 'id' | 'createdAt' | 'updatedAt'>[],
     mockRecords: Omit<HealthRecord, 'id' | 'createdAt' | 'updatedAt'>[],
   ): Promise<void> {
-    const existingMembers = await db.family_members.count();
-    if (existingMembers > 0) return; // Already seeded
+    const existingMembers = extractList(await db.collection('family_members').get());
+    if ((existingMembers || []).length > 0) return; // Already seeded
 
     for (const mock of mockMembers) {
-      const id = `member_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-      const now = new Date().toISOString();
-      await db.family_members.add({
+      const id = generateId('member');
+      const ts = now();
+      await safeAdd('family_members', {
         ...mock,
         id,
-        createdAt: now,
-        updatedAt: now,
+        createdAt: ts,
+        updatedAt: ts,
       });
     }
 
     for (const mock of mockRecords) {
-      const id = `hr_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-      const now = new Date().toISOString();
-      await db.health_records.add({
+      const id = generateId('hr');
+      const ts = now();
+      await safeAdd('health_records', {
         ...mock,
         id,
-        createdAt: now,
-        updatedAt: now,
+        createdAt: ts,
+        updatedAt: ts,
       });
     }
   },

@@ -4,8 +4,9 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { Notification, ThemeConfig, SidebarState, ModuleConfig } from '../types';
+import type { Notification, ThemeConfig, SidebarState, ModuleConfig, UserProfile } from '../types';
 import { MODULES } from '../config/modules';
+import cloudbaseAuthService from '../services/cloudbaseAuthService';
 
 // ── UI Store ──
 interface UIState {
@@ -199,3 +200,82 @@ export const useModuleStore = create<ModuleState>()(
     },
   ),
 );
+
+// ── Profile Store ──
+interface ProfileState {
+  profile: UserProfile | null;
+  isLoading: boolean;
+  isInitialized: boolean;
+
+  // Actions
+  loadProfile: () => Promise<void>;
+  updateProfile: (updates: Partial<UserProfile>) => Promise<void>;
+  setProfile: (profile: UserProfile) => void;
+  clearProfile: () => void;
+}
+
+export const useProfileStore = create<ProfileState>()(
+  persist(
+    (set, get) => ({
+      profile: null,
+      isLoading: false,
+      isInitialized: false,
+
+      loadProfile: async () => {
+        set({ isLoading: true });
+        try {
+          // 从 CloudBase 获取当前登录用户资料
+          const profile = await cloudbaseAuthService.fetchCurrentUserProfile();
+
+          set({
+            profile,
+            isLoading: false,
+            isInitialized: true,
+          });
+        } catch (error) {
+          console.error('Failed to load profile:', error);
+          set({ isLoading: false, isInitialized: true });
+        }
+      },
+
+      updateProfile: async (updates: Partial<UserProfile>) => {
+        set({ isLoading: true });
+        try {
+          const result = await cloudbaseAuthService.updateCurrentUserProfile(updates);
+          if (!result.success) {
+            throw new Error(result.error || '更新失败');
+          }
+          // 重新获取最新资料
+          const profile = await cloudbaseAuthService.fetchCurrentUserProfile();
+          set({
+            profile,
+            isLoading: false,
+          });
+        } catch (error) {
+          console.error('Failed to update profile:', error);
+          set({ isLoading: false });
+          throw error;
+        }
+      },
+
+      setProfile: (profile: UserProfile) => {
+        set({ profile, isInitialized: true });
+      },
+
+      clearProfile: () => {
+        set({ profile: null, isInitialized: false });
+      },
+    }),
+    {
+      name: 'personal-asset-os-profile',
+      partialize: (state) => ({
+        profile: state.profile,
+      }),
+    },
+  ),
+);
+
+// Initialize profile on app start
+if (typeof window !== 'undefined') {
+  useProfileStore.getState().loadProfile();
+}

@@ -1,10 +1,13 @@
-import { db, writeAuditLog } from '../db'
-import type { Transaction } from '../types'
+import { db } from '@/lib/cloudbase';
+import { createCrudService, writeAuditLog, generateId, now, sortBy, matchSearch, safeAdd } from '@/lib/cloudbaseCrud';
+import type { Transaction } from '../types';
 
 /**
- * Transaction Service — Dexie.js data layer for Transactions
+ * Transaction Service — CloudBase NoSQL data layer for Transactions
  * 交易数据服务层
  */
+const crud = createCrudService<Transaction>('transactions', 'txn');
+
 export const transactionService = {
   async getTransactions(filters?: {
     accountId?: string
@@ -14,79 +17,90 @@ export const transactionService = {
     endDate?: string
     search?: string
   }): Promise<Transaction[]> {
-    let collection = db.transactions.toCollection()
+    let transactions = await crud.getAll();
 
     if (filters?.accountId) {
-      collection = collection.filter(t => t.accountId === filters.accountId)
+      transactions = transactions.filter(t => t.accountId === filters.accountId);
     }
 
     if (filters?.symbol) {
-      collection = collection.filter(t => t.symbol === filters.symbol)
+      transactions = transactions.filter(t => t.symbol === filters.symbol);
     }
 
     if (filters?.type) {
-      collection = collection.filter(t => t.transactionType === filters.type)
+      transactions = transactions.filter(t => t.transactionType === filters.type);
     }
 
     if (filters?.startDate) {
-      collection = collection.filter(t => t.tradeDate >= filters.startDate!)
+      transactions = transactions.filter(t => t.tradeDate >= filters.startDate!);
     }
 
     if (filters?.endDate) {
-      collection = collection.filter(t => t.tradeDate <= filters.endDate!)
+      transactions = transactions.filter(t => t.tradeDate <= filters.endDate!);
     }
 
     if (filters?.search) {
-      const search = filters.search.toLowerCase()
-      collection = collection.filter(t =>
+      const search = filters.search.toLowerCase();
+      transactions = transactions.filter(t =>
         t.symbol?.toLowerCase().includes(search) ||
         (t as any).notes?.toLowerCase().includes(search)
-      )
+      );
     }
 
-    return await collection.toArray()
+    return transactions;
   },
 
   async getTransactionById(id: string): Promise<Transaction | undefined> {
-    return await db.transactions.get(id)
+    return await crud.getById(id);
   },
 
   async addTransaction(transaction: Omit<Transaction, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
-    const id = `txn_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
-    const now = new Date().toISOString()
+    const id = generateId('txn');
+    const ts = now();
     const newTransaction: Transaction = {
       ...transaction,
       id,
-      createdAt: now,
-      updatedAt: now,
-    }
+      createdAt: ts,
+      updatedAt: ts,
+    };
 
-    await db.transactions.add(newTransaction)
-    await writeAuditLog('transaction', id, 'create', undefined, newTransaction as unknown as Record<string, unknown>)
+    await safeAdd('transactions', newTransaction);
+    await writeAuditLog('transaction', id, 'create', undefined, newTransaction as unknown as Record<string, unknown>);
 
-    return id
+    return id;
   },
 
   async updateTransaction(id: string, updates: Partial<Transaction>): Promise<void> {
-    const oldTransaction = await db.transactions.get(id)
-    if (!oldTransaction) throw new Error(`Transaction ${id} not found`)
+    const oldTransaction = await crud.getById(id);
+    if (!oldTransaction) throw new Error(`Transaction ${id} not found`);
+
+    const { data } = await db.collection('transactions').where({ id }).get();
+    const docId = (data[0] as any)._id;
+
+    const updatedFields = {
+      ...updates,
+      updatedAt: now(),
+    };
+
+    await db.collection('transactions').doc(docId).update(updatedFields);
 
     const updatedTransaction: Transaction = {
       ...oldTransaction,
       ...updates,
-      updatedAt: new Date().toISOString(),
-    }
-
-    await db.transactions.put(updatedTransaction)
-    await writeAuditLog('transaction', id, 'update', oldTransaction as unknown as Record<string, unknown>, updatedTransaction as unknown as Record<string, unknown>)
+      updatedAt: updatedFields.updatedAt,
+    };
+    await writeAuditLog('transaction', id, 'update', oldTransaction as unknown as Record<string, unknown>, updatedTransaction as unknown as Record<string, unknown>);
   },
 
   async deleteTransaction(id: string): Promise<void> {
-    const oldTransaction = await db.transactions.get(id)
-    if (!oldTransaction) throw new Error(`Transaction ${id} not found`)
+    const oldTransaction = await crud.getById(id);
+    if (!oldTransaction) throw new Error(`Transaction ${id} not found`);
 
-    await db.transactions.delete(id)
-    await writeAuditLog('transaction', id, 'delete', oldTransaction as unknown as Record<string, unknown>, undefined)
+    const { data } = await db.collection('transactions').where({ id }).get();
+    const docId = (data[0] as any)._id;
+
+    await db.collection('transactions').doc(docId).remove();
+    await writeAuditLog('transaction', id, 'delete', oldTransaction as unknown as Record<string, unknown>, undefined);
   },
 
   async getTransactionStats(accountId?: string): Promise<{
@@ -96,8 +110,8 @@ export const transactionService = {
     count: number
   }> {
     const transactions = accountId
-      ? await db.transactions.where({ accountId }).toArray()
-      : await db.transactions.toArray()
+      ? await crud.query({ accountId })
+      : await crud.getAll();
 
     let totalBuy = 0
     let totalSell = 0
@@ -116,4 +130,22 @@ export const transactionService = {
       count: transactions.length,
     }
   },
-}
+
+  /**
+   * Seed demo data (for development)
+   */
+  async seedMockData(mockTransactions: Omit<Transaction, 'id' | 'createdAt' | 'updatedAt'>[]): Promise<void> {
+    const existing = await crud.count();
+    if (existing > 0) return; // Already seeded
+    for (const mock of mockTransactions) {
+      const id = generateId('txn');
+      const ts = now();
+      await safeAdd('transactions', {
+        ...mock,
+        id,
+        createdAt: ts,
+        updatedAt: ts,
+      });
+    }
+  },
+};

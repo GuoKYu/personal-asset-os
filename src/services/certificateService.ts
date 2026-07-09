@@ -1,8 +1,9 @@
-import { db, writeAuditLog } from '../db';
+import { db } from '@/lib/cloudbase';
+import { writeAuditLog, generateId, now, safeAdd , extractList } from "@/lib/cloudbaseCrud";
 import type { Certificate, CertificateStatus } from '../types';
 
 /**
- * Certificate Service — Dexie.js data layer for Certificates
+ * Certificate Service — CloudBase NoSQL data layer for Certificates
  * 证书数据服务层 - 封装所有证书相关的数据库操作
  */
 export const certificateService = {
@@ -16,25 +17,24 @@ export const certificateService = {
     sortBy?: string;
     sortOrder?: 'asc' | 'desc';
   }): Promise<Certificate[]> {
-    let collection = db.certificates.toCollection();
+    const data = extractList(await db.collection('certificates').get());
+    let certificates = (data || []) as Certificate[];
 
     if (filters?.search) {
       const search = filters.search.toLowerCase();
-      collection = collection.filter(cert =>
+      certificates = certificates.filter(cert =>
         cert.certName?.toLowerCase().includes(search) ||
         cert.issuingBody?.toLowerCase().includes(search)
       );
     }
 
     if (filters?.category) {
-      collection = collection.filter(cert => cert.category === filters.category);
+      certificates = certificates.filter(cert => cert.category === filters.category);
     }
 
     if (filters?.status) {
-      collection = collection.filter(cert => cert.status === filters.status);
+      certificates = certificates.filter(cert => cert.status === filters.status);
     }
-
-    let certificates = await collection.toArray();
 
     // Sort
     if (filters?.sortBy) {
@@ -57,23 +57,24 @@ export const certificateService = {
    * Get a single certificate by ID
    */
   async getCertificateById(id: string): Promise<Certificate | undefined> {
-    return await db.certificates.get(id);
+    const { data } = await db.collection('certificates').where({ id }).get();
+    return data?.[0] as Certificate | undefined;
   },
 
   /**
    * Add a new certificate
    */
   async addCertificate(certificate: Omit<Certificate, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
-    const id = `cert_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-    const now = new Date().toISOString();
+    const id = generateId('cert');
+    const ts = now();
     const newCertificate: Certificate = {
       ...certificate,
       id,
-      createdAt: now,
-      updatedAt: now,
+      createdAt: ts,
+      updatedAt: ts,
     };
 
-    await db.certificates.add(newCertificate);
+    await safeAdd('certificates', newCertificate);
     await writeAuditLog('certificate', id, 'create', undefined, newCertificate as unknown as Record<string, unknown>);
 
     return id;
@@ -83,16 +84,19 @@ export const certificateService = {
    * Update an existing certificate
    */
   async updateCertificate(id: string, updates: Partial<Certificate>): Promise<void> {
-    const oldCertificate = await db.certificates.get(id);
+    const { data } = await db.collection('certificates').where({ id }).get();
+    const oldCertificate = data?.[0];
     if (!oldCertificate) throw new Error(`Certificate ${id} not found`);
 
-    const updatedCertificate: Certificate = {
-      ...oldCertificate,
+    const docId = (oldCertificate as any)._id;
+    const updatedFields = {
       ...updates,
-      updatedAt: new Date().toISOString(),
+      updatedAt: now(),
     };
 
-    await db.certificates.put(updatedCertificate);
+    await db.collection('certificates').doc(docId).update(updatedFields);
+
+    const updatedCertificate = { ...oldCertificate, ...updatedFields } as Certificate;
     await writeAuditLog('certificate', id, 'update', oldCertificate as unknown as Record<string, unknown>, updatedCertificate as unknown as Record<string, unknown>);
   },
 
@@ -100,10 +104,12 @@ export const certificateService = {
    * Delete a certificate
    */
   async deleteCertificate(id: string): Promise<void> {
-    const oldCertificate = await db.certificates.get(id);
+    const { data } = await db.collection('certificates').where({ id }).get();
+    const oldCertificate = data?.[0];
     if (!oldCertificate) throw new Error(`Certificate ${id} not found`);
 
-    await db.certificates.delete(id);
+    const docId = (oldCertificate as any)._id;
+    await db.collection('certificates').doc(docId).remove();
     await writeAuditLog('certificate', id, 'delete', oldCertificate as unknown as Record<string, unknown>, undefined);
   },
 
@@ -117,9 +123,10 @@ export const certificateService = {
     expiredCount: number;
     expiringSoonCount: number;
   }> {
-    const certificates = await db.certificates.toArray();
-    const now = new Date();
-    const threeMonthsFromNow = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
+    const data = extractList(await db.collection('certificates').get());
+    const certificates = (data || []) as Certificate[];
+    const nowDate = new Date();
+    const threeMonthsFromNow = new Date(nowDate.getTime() + 90 * 24 * 60 * 60 * 1000);
 
     const byCategory: Record<string, number> = {};
     const byStatus: Record<string, number> = {};
@@ -134,12 +141,12 @@ export const certificateService = {
       byStatus[cert.status] = (byStatus[cert.status] || 0) + 1;
 
       // Expired count
-      if (cert.expiryDate && new Date(cert.expiryDate) < now) {
+      if (cert.expiryDate && new Date(cert.expiryDate) < nowDate) {
         expiredCount++;
       }
 
       // Expiring soon (within 90 days)
-      if (cert.expiryDate && new Date(cert.expiryDate) >= now && new Date(cert.expiryDate) <= threeMonthsFromNow) {
+      if (cert.expiryDate && new Date(cert.expiryDate) >= nowDate && new Date(cert.expiryDate) <= threeMonthsFromNow) {
         expiringSoonCount++;
       }
     }
@@ -157,17 +164,17 @@ export const certificateService = {
    * Seed mock data (for development)
    */
   async seedMockData(mockCertificates: Omit<Certificate, 'id' | 'createdAt' | 'updatedAt'>[]): Promise<void> {
-    const existing = await db.certificates.count();
-    if (existing > 0) return; // Already seeded
+    const data = extractList(await db.collection('certificates').get());
+    if ((data || []).length > 0) return; // Already seeded
 
     for (const mock of mockCertificates) {
-      const id = `cert_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-      const now = new Date().toISOString();
-      await db.certificates.add({
+      const id = generateId('cert');
+      const ts = now();
+      await safeAdd('certificates', {
         ...mock,
         id,
-        createdAt: now,
-        updatedAt: now,
+        createdAt: ts,
+        updatedAt: ts,
       });
     }
   },

@@ -35,8 +35,8 @@ function SidebarItem({ module, isActive, isExpanded, onClick, index }: SidebarIt
   return (
     <li
       className={clsx(
-        'relative flex items-center h-12 cursor-pointer transition-all duration-300 group anim-slide-left',
-        isActive ? '' : 'hover:bg-white/5',
+        'relative flex items-center h-12 cursor-pointer transition-colors duration-200 group anim-slide-left',
+        isActive ? '' : 'hover:bg-[var(--td-bg-color-container-hover)]',
       )}
       style={{ animationDelay: `${index * 0.04}s` }}
       role="menuitem"
@@ -44,47 +44,38 @@ function SidebarItem({ module, isActive, isExpanded, onClick, index }: SidebarIt
       aria-label={module.name}
       onClick={onClick}
     >
-      {/* Active glow indicator */}
+      {/* Active indicator (flat TDesign: solid bar + light fill) */}
       {isActive && (
         <>
           <span
-            className="absolute left-0 top-1 bottom-1 w-[3px] rounded-r-full"
-            style={{
-              background: 'linear-gradient(180deg, var(--pao-primary), var(--pao-violet))',
-              boxShadow: '0 0 12px var(--pao-primary)',
-            }}
+            className="absolute left-0 top-1 bottom-1 w-[3px] rounded-r"
+            style={{ background: 'var(--pao-primary)' }}
           />
           <span
-            className="absolute inset-0 rounded-xl"
-            style={{
-              background: 'var(--sidebar-active)',
-              boxShadow: 'inset 0 0 20px var(--sidebar-active-glow)',
-            }}
+            className="absolute inset-0 rounded-lg"
+            style={{ background: 'var(--sidebar-active)' }}
           />
         </>
       )}
 
       <button
         type="button"
-        className="relative flex items-center w-full h-full px-4 gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 rounded-xl"
+        className="relative flex items-center w-full h-full px-4 gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 rounded-lg"
         style={{ outlineColor: 'var(--pao-primary)' }}
       >
         <Icon
           className={clsx(
-            'w-5 h-5 flex-shrink-0 transition-all duration-300',
+            'w-5 h-5 flex-shrink-0 transition-all duration-200',
             isActive ? 'scale-110' : 'group-hover:scale-105',
           )}
           style={{
             color: isActive ? 'var(--pao-primary)' : 'var(--pao-text-tertiary)',
-            filter: isActive ? 'drop-shadow(0 0 6px var(--pao-primary))' : 'none',
           }}
           aria-hidden="true"
         />
         {isExpanded && (
           <span
-            className={clsx(
-              'text-sm font-medium whitespace-nowrap transition-colors duration-300',
-            )}
+            className="text-sm font-medium whitespace-nowrap transition-colors duration-200"
             style={{
               color: isActive ? 'var(--pao-text-primary)' : 'var(--pao-text-secondary)',
             }}
@@ -97,8 +88,13 @@ function SidebarItem({ module, isActive, isExpanded, onClick, index }: SidebarIt
       {/* Tooltip when collapsed */}
       {!isExpanded && (
         <div
-          className="absolute left-full ml-3 px-2.5 py-1.5 text-xs rounded-lg whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 pointer-events-none glass-strong"
-          style={{ color: 'var(--pao-text-primary)' }}
+          className="absolute left-full ml-3 px-2.5 py-1.5 text-xs rounded-lg whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 pointer-events-none"
+          style={{
+            background: 'var(--td-bg-color-container)',
+            color: 'var(--pao-text-primary)',
+            border: '1px solid var(--td-component-border)',
+            boxShadow: 'var(--td-shadow-2)',
+          }}
           role="tooltip"
         >
           {module.name}
@@ -130,7 +126,7 @@ export default function Sidebar() {
       {isMobileOpen && (
         <div
           className="fixed inset-0 z-40 lg:hidden anim-fade-in"
-          style={{ background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)' }}
+          style={{ background: 'rgba(0,0,0,0.4)' }}
           onClick={handleMobileToggle}
           aria-hidden="true"
         />
@@ -145,8 +141,6 @@ export default function Sidebar() {
         )}
         style={{
           background: 'var(--sidebar-bg)',
-          backdropFilter: 'blur(24px) saturate(180%)',
-          WebkitBackdropFilter: 'blur(24px) saturate(180%)',
           borderRight: '1px solid var(--pao-border)',
         }}
         role="navigation"
@@ -159,16 +153,16 @@ export default function Sidebar() {
         >
           <div className="flex items-center gap-3 min-w-0">
             <div
-              className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 anim-glow-pulse"
-              style={{
-                background: 'linear-gradient(135deg, var(--pao-primary), var(--pao-violet))',
-                boxShadow: '0 4px 16px rgba(99,102,241,0.4)',
-              }}
+              className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
+              style={{ background: 'var(--pao-primary)' }}
             >
               <Boxes className="w-5 h-5 text-white" aria-hidden="true" />
             </div>
             {isExpanded && (
-              <span className="text-base font-bold gradient-text whitespace-nowrap anim-fade-in">
+              <span
+                className="text-base font-bold whitespace-nowrap anim-fade-in"
+                style={{ color: 'var(--pao-text-primary)' }}
+              >
                 PAO
               </span>
             )}
@@ -205,14 +199,8 @@ export default function Sidebar() {
           <button
             type="button"
             onClick={handleToggle}
-            className="hidden lg:flex items-center justify-center w-full h-10 rounded-xl transition-all duration-300 hover:scale-105 focus-ring"
+            className="hidden lg:flex items-center justify-center w-full h-10 rounded-lg transition-colors duration-200 hover:bg-[var(--td-bg-color-container-hover)] focus-ring"
             style={{ background: 'transparent' }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'var(--pao-divider)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'transparent';
-            }}
             aria-label={isExpanded ? '收起侧边栏' : '展开侧边栏'}
           >
             {isExpanded ? (
@@ -229,10 +217,7 @@ export default function Sidebar() {
         type="button"
         onClick={handleMobileToggle}
         className="fixed bottom-4 left-4 z-50 lg:hidden w-12 h-12 rounded-full text-white shadow-lg flex items-center justify-center anim-scale-in focus-ring"
-        style={{
-          background: 'linear-gradient(135deg, var(--pao-primary), var(--pao-violet))',
-          boxShadow: '0 4px 20px rgba(99,102,241,0.4)',
-        }}
+        style={{ background: 'var(--pao-primary)', boxShadow: 'var(--td-shadow-2)' }}
         aria-label={isMobileOpen ? '关闭导航菜单' : '打开导航菜单'}
       >
         <Boxes className="w-5 h-5" aria-hidden="true" />

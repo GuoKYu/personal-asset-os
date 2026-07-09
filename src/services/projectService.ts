@@ -1,8 +1,9 @@
-import { db, writeAuditLog } from '../db';
+import { db } from '@/lib/cloudbase';
+import { writeAuditLog, generateId, now, safeAdd , extractList } from "@/lib/cloudbaseCrud";
 import type { Project, ProjectStatus, ProjectPriority, Milestone } from '../types';
 
 /**
- * Project Service — Dexie.js data layer for Projects module
+ * Project Service — CloudBase NoSQL data layer for Projects module
  * 项目管理数据服务层 - 封装所有项目管理相关的数据库操作
  */
 export const projectService = {
@@ -16,25 +17,24 @@ export const projectService = {
     sortBy?: string;
     sortOrder?: 'asc' | 'desc';
   }): Promise<Project[]> {
-    let collection = db.projects.toCollection();
+    const data = extractList(await db.collection('projects').get());
+    let projects = (data || []) as Project[];
 
     if (filters?.search) {
       const search = filters.search.toLowerCase();
-      collection = collection.filter(p =>
+      projects = projects.filter(p =>
         (p.title?.toLowerCase().includes(search) || false) ||
         (p.description?.toLowerCase().includes(search) || false)
       );
     }
 
     if (filters?.status) {
-      collection = collection.filter(p => p.status === filters.status);
+      projects = projects.filter(p => p.status === filters.status);
     }
 
     if (filters?.priority) {
-      collection = collection.filter(p => p.priority === filters.priority);
+      projects = projects.filter(p => p.priority === filters.priority);
     }
-
-    let projects = await collection.toArray();
 
     // Sort
     if (filters?.sortBy) {
@@ -57,23 +57,24 @@ export const projectService = {
    * Get a single project by ID
    */
   async getProjectById(id: string): Promise<Project | undefined> {
-    return await db.projects.get(id);
+    const { data } = await db.collection('projects').where({ id }).get();
+    return data?.[0] as Project | undefined;
   },
 
   /**
    * Add a new project
    */
   async addProject(project: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
-    const id = `proj_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-    const now = new Date().toISOString();
+    const id = generateId('proj');
+    const ts = now();
     const newProject: Project = {
       ...project,
       id,
-      createdAt: now,
-      updatedAt: now,
+      createdAt: ts,
+      updatedAt: ts,
     };
 
-    await db.projects.add(newProject);
+    await safeAdd('projects', newProject);
     await writeAuditLog('project', id, 'create', undefined, newProject as unknown as Record<string, unknown>);
 
     return id;
@@ -83,16 +84,19 @@ export const projectService = {
    * Update an existing project
    */
   async updateProject(id: string, updates: Partial<Project>): Promise<void> {
-    const oldProject = await db.projects.get(id);
+    const { data } = await db.collection('projects').where({ id }).get();
+    const oldProject = data?.[0];
     if (!oldProject) throw new Error(`Project ${id} not found`);
 
-    const updatedProject: Project = {
-      ...oldProject,
+    const docId = (oldProject as any)._id;
+    const updatedFields = {
       ...updates,
-      updatedAt: new Date().toISOString(),
+      updatedAt: now(),
     };
 
-    await db.projects.put(updatedProject);
+    await db.collection('projects').doc(docId).update(updatedFields);
+
+    const updatedProject = { ...oldProject, ...updatedFields } as Project;
     await writeAuditLog('project', id, 'update', oldProject as unknown as Record<string, unknown>, updatedProject as unknown as Record<string, unknown>);
   },
 
@@ -100,10 +104,12 @@ export const projectService = {
    * Delete a project
    */
   async deleteProject(id: string): Promise<void> {
-    const oldProject = await db.projects.get(id);
+    const { data } = await db.collection('projects').where({ id }).get();
+    const oldProject = data?.[0];
     if (!oldProject) throw new Error(`Project ${id} not found`);
 
-    await db.projects.delete(id);
+    const docId = (oldProject as any)._id;
+    await db.collection('projects').doc(docId).remove();
     await writeAuditLog('project', id, 'delete', oldProject as unknown as Record<string, unknown>, undefined);
   },
 
@@ -111,18 +117,20 @@ export const projectService = {
    * Add a milestone to a project
    */
   async addMilestone(projectId: string, milestone: Omit<Milestone, 'id'>): Promise<void> {
-    const project = await db.projects.get(projectId);
+    const { data } = await db.collection('projects').where({ id: projectId }).get();
+    const project = data?.[0];
     if (!project) throw new Error(`Project ${projectId} not found`);
 
     const newMilestone: Milestone = {
       ...milestone,
-      id: `ms_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      id: generateId('ms'),
     };
 
-    const milestones = project.milestones || [];
+    const milestones = (project as any).milestones || [];
     milestones.push(newMilestone);
 
-    await db.projects.update(projectId, { milestones, updatedAt: new Date().toISOString() });
+    const docId = (project as any)._id;
+    await db.collection('projects').doc(docId).update({ milestones, updatedAt: now() });
     await writeAuditLog('project', projectId, 'update', undefined, { milestones } as unknown as Record<string, unknown>);
   },
 
@@ -130,16 +138,18 @@ export const projectService = {
    * Update a milestone
    */
   async updateMilestone(projectId: string, milestoneId: string, updates: Partial<Milestone>): Promise<void> {
-    const project = await db.projects.get(projectId);
+    const { data } = await db.collection('projects').where({ id: projectId }).get();
+    const project = data?.[0];
     if (!project) throw new Error(`Project ${projectId} not found`);
 
-    const milestones = project.milestones || [];
-    const index = milestones.findIndex(m => m.id === milestoneId);
+    const milestones = (project as any).milestones || [];
+    const index = milestones.findIndex((m: Milestone) => m.id === milestoneId);
     if (index === -1) throw new Error(`Milestone ${milestoneId} not found`);
 
     milestones[index] = { ...milestones[index], ...updates };
 
-    await db.projects.update(projectId, { milestones, updatedAt: new Date().toISOString() });
+    const docId = (project as any)._id;
+    await db.collection('projects').doc(docId).update({ milestones, updatedAt: now() });
     await writeAuditLog('project', projectId, 'update', undefined, { milestones } as unknown as Record<string, unknown>);
   },
 
@@ -147,12 +157,14 @@ export const projectService = {
    * Delete a milestone
    */
   async deleteMilestone(projectId: string, milestoneId: string): Promise<void> {
-    const project = await db.projects.get(projectId);
+    const { data } = await db.collection('projects').where({ id: projectId }).get();
+    const project = data?.[0];
     if (!project) throw new Error(`Project ${projectId} not found`);
 
-    const milestones = (project.milestones || []).filter(m => m.id !== milestoneId);
+    const milestones = ((project as any).milestones || []).filter((m: Milestone) => m.id !== milestoneId);
 
-    await db.projects.update(projectId, { milestones, updatedAt: new Date().toISOString() });
+    const docId = (project as any)._id;
+    await db.collection('projects').doc(docId).update({ milestones, updatedAt: now() });
     await writeAuditLog('project', projectId, 'update', undefined, { milestones } as unknown as Record<string, unknown>);
   },
 
@@ -166,8 +178,9 @@ export const projectService = {
     avgProgress: number;
     overdueCount: number;
   }> {
-    const projects = await db.projects.toArray();
-    const now = new Date();
+    const data = extractList(await db.collection('projects').get());
+    const projects = (data || []) as Project[];
+    const nowDate = new Date();
 
     const byStatus: Record<string, number> = {};
     const byPriority: Record<string, number> = {};
@@ -185,7 +198,7 @@ export const projectService = {
       totalProgress += project.progress || 0;
 
       // Overdue count
-      if (project.targetDate && new Date(project.targetDate) < now && project.status !== 'completed') {
+      if (project.targetDate && new Date(project.targetDate) < nowDate && project.status !== 'completed') {
         overdueCount++;
       }
     }
@@ -203,17 +216,17 @@ export const projectService = {
    * Seed mock data (for development)
    */
   async seedMockData(mockProjects: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>[]): Promise<void> {
-    const existing = await db.projects.count();
-    if (existing > 0) return; // Already seeded
+    const existing = extractList(await db.collection('projects').get());
+    if ((existing || []).length > 0) return; // Already seeded
 
     for (const mock of mockProjects) {
-      const id = `proj_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-      const now = new Date().toISOString();
-      await db.projects.add({
+      const id = generateId('proj');
+      const ts = now();
+      await safeAdd('projects', {
         ...mock,
         id,
-        createdAt: now,
-        updatedAt: now,
+        createdAt: ts,
+        updatedAt: ts,
       });
     }
   },

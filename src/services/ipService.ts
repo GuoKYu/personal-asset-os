@@ -1,8 +1,9 @@
-import { db, writeAuditLog } from '../db';
+import { db } from '@/lib/cloudbase';
+import { writeAuditLog, generateId, now, safeAdd , extractList } from "@/lib/cloudbaseCrud";
 import type { IP, IPType, IPStatus } from '../types';
 
 /**
- * IP Service — Dexie.js data layer for Intellectual Property
+ * IP Service — CloudBase NoSQL data layer for Intellectual Property
  * 知识产权数据服务层 - 封装所有IP相关的数据库操作
  */
 export const ipService = {
@@ -17,11 +18,12 @@ export const ipService = {
     sortBy?: string;
     sortOrder?: 'asc' | 'desc';
   }): Promise<IP[]> {
-    let collection = db.ips.toCollection();
+    const data = extractList(await db.collection('ips').get());
+    let ips = (data || []) as IP[];
 
     if (filters?.search) {
       const search = filters.search.toLowerCase();
-      collection = collection.filter(ip =>
+      ips = ips.filter(ip =>
         ip.title?.toLowerCase().includes(search) ||
         ip.registrationNo?.toLowerCase().includes(search) ||
         ip.applicant?.toLowerCase().includes(search)
@@ -29,18 +31,16 @@ export const ipService = {
     }
 
     if (filters?.ipType) {
-      collection = collection.filter(ip => ip.ipType === filters.ipType);
+      ips = ips.filter(ip => ip.ipType === filters.ipType);
     }
 
     if (filters?.status) {
-      collection = collection.filter(ip => ip.status === filters.status);
+      ips = ips.filter(ip => ip.status === filters.status);
     }
 
     if (filters?.jurisdiction) {
-      collection = collection.filter(ip => ip.jurisdiction === filters.jurisdiction);
+      ips = ips.filter(ip => ip.jurisdiction === filters.jurisdiction);
     }
-
-    let ips = await collection.toArray();
 
     // Sort
     if (filters?.sortBy) {
@@ -63,23 +63,24 @@ export const ipService = {
    * Get a single IP by ID
    */
   async getIPById(id: string): Promise<IP | undefined> {
-    return await db.ips.get(id);
+    const { data } = await db.collection('ips').where({ id }).get();
+    return data?.[0] as IP | undefined;
   },
 
   /**
    * Add a new IP
    */
   async addIP(ip: Omit<IP, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
-    const id = `ip_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-    const now = new Date().toISOString();
+    const id = generateId('ip');
+    const ts = now();
     const newIP: IP = {
       ...ip,
       id,
-      createdAt: now,
-      updatedAt: now,
+      createdAt: ts,
+      updatedAt: ts,
     };
 
-    await db.ips.add(newIP);
+    await safeAdd('ips', newIP);
     await writeAuditLog('ip', id, 'create', undefined, newIP as unknown as Record<string, unknown>);
 
     return id;
@@ -89,16 +90,19 @@ export const ipService = {
    * Update an existing IP
    */
   async updateIP(id: string, updates: Partial<IP>): Promise<void> {
-    const oldIP = await db.ips.get(id);
+    const { data } = await db.collection('ips').where({ id }).get();
+    const oldIP = data?.[0];
     if (!oldIP) throw new Error(`IP ${id} not found`);
 
-    const updatedIP: IP = {
-      ...oldIP,
+    const docId = (oldIP as any)._id;
+    const updatedFields = {
       ...updates,
-      updatedAt: new Date().toISOString(),
+      updatedAt: now(),
     };
 
-    await db.ips.put(updatedIP);
+    await db.collection('ips').doc(docId).update(updatedFields);
+
+    const updatedIP = { ...oldIP, ...updatedFields } as IP;
     await writeAuditLog('ip', id, 'update', oldIP as unknown as Record<string, unknown>, updatedIP as unknown as Record<string, unknown>);
   },
 
@@ -106,10 +110,12 @@ export const ipService = {
    * Delete an IP
    */
   async deleteIP(id: string): Promise<void> {
-    const oldIP = await db.ips.get(id);
+    const { data } = await db.collection('ips').where({ id }).get();
+    const oldIP = data?.[0];
     if (!oldIP) throw new Error(`IP ${id} not found`);
 
-    await db.ips.delete(id);
+    const docId = (oldIP as any)._id;
+    await db.collection('ips').doc(docId).remove();
     await writeAuditLog('ip', id, 'delete', oldIP as unknown as Record<string, unknown>, undefined);
   },
 
@@ -124,9 +130,10 @@ export const ipService = {
     expiredCount: number;
     expiringSoonCount: number;
   }> {
-    const ips = await db.ips.toArray();
-    const now = new Date();
-    const threeMonthsFromNow = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
+    const data = extractList(await db.collection('ips').get());
+    const ips = (data || []) as IP[];
+    const nowDate = new Date();
+    const threeMonthsFromNow = new Date(nowDate.getTime() + 90 * 24 * 60 * 60 * 1000);
 
     const byType: Record<string, number> = {};
     const byStatus: Record<string, number> = {};
@@ -147,12 +154,12 @@ export const ipService = {
       }
 
       // Expired count
-      if (ip.expiryDate && new Date(ip.expiryDate) < now) {
+      if (ip.expiryDate && new Date(ip.expiryDate) < nowDate) {
         expiredCount++;
       }
 
       // Expiring soon (within 90 days)
-      if (ip.expiryDate && new Date(ip.expiryDate) >= now && new Date(ip.expiryDate) <= threeMonthsFromNow) {
+      if (ip.expiryDate && new Date(ip.expiryDate) >= nowDate && new Date(ip.expiryDate) <= threeMonthsFromNow) {
         expiringSoonCount++;
       }
     }
@@ -171,17 +178,17 @@ export const ipService = {
    * Seed mock data (for development)
    */
   async seedMockData(mockIPs: Omit<IP, 'id' | 'createdAt' | 'updatedAt'>[]): Promise<void> {
-    const existing = await db.ips.count();
-    if (existing > 0) return; // Already seeded
+    const data = extractList(await db.collection('ips').get());
+    if ((data || []).length > 0) return; // Already seeded
 
     for (const mock of mockIPs) {
-      const id = `ip_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-      const now = new Date().toISOString();
-      await db.ips.add({
+      const id = generateId('ip');
+      const ts = now();
+      await safeAdd('ips', {
         ...mock,
         id,
-        createdAt: now,
-        updatedAt: now,
+        createdAt: ts,
+        updatedAt: ts,
       });
     }
   },

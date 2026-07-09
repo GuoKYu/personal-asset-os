@@ -186,7 +186,7 @@ const IPListPage: React.FC = () => {
       <div
         className="relative overflow-hidden rounded-2xl mb-6 anim-fade-in-down"
         style={{
-          background: 'linear-gradient(135deg, rgba(99,102,241,0.12), rgba(6,182,212,0.08))',
+          background: 'linear-gradient(135deg, var(--td-brand-color-light), var(--td-bg-color-container))',
           border: '1px solid var(--glass-border)',
           backdropFilter: 'blur(20px) saturate(180%)',
           WebkitBackdropFilter: 'blur(20px) saturate(180%)',
@@ -207,7 +207,7 @@ const IPListPage: React.FC = () => {
             <button
               onClick={() => handleAdd()}
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium text-white transition-all duration-300 hover:scale-105"
-              style={{ background: 'linear-gradient(135deg, #6366f1, #06b6d4)' }}
+              style={{ background: 'linear-gradient(135deg, var(--pao-primary), var(--pao-violet))' }}
             >
               <Plus className="h-4 w-4" />
               新增IP
@@ -409,7 +409,7 @@ const IPListPage: React.FC = () => {
         subtitle={editTarget ? '修改知识产权信息' : '录入新的知识产权记录'}
         fields={ipFormFields}
         initialData={editTarget ? (editTarget as unknown as Record<string, unknown>) : undefined}
-        accentGradient="linear-gradient(135deg, #6366f1, #06b6d4)"
+        accentGradient="linear-gradient(135deg, var(--pao-primary), var(--pao-violet))"
       />
     </div>
   )

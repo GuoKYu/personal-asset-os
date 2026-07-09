@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import EntityFormModal, { type FormField } from '@/components/EntityFormModal'
 import {
   Plus,
   Award,
@@ -41,11 +41,11 @@ const statusConfig: Record<string, { label: string; color: string; bg: string }>
 }
 
 const CertificatePage: React.FC = () => {
-  const navigate = useNavigate()
   const [certs, setCerts] = useState<Certificate[]>([])
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
   const [loading, setLoading] = useState(true)
+  const [isFormOpen, setIsFormOpen] = useState(false)
 
   useEffect(() => {
     const loadCerts = async () => {
@@ -98,7 +98,7 @@ const CertificatePage: React.FC = () => {
       <div
         className="relative overflow-hidden rounded-2xl mb-6 anim-fade-in-down"
         style={{
-          background: 'linear-gradient(135deg, rgba(245,158,11,0.12), rgba(99,102,241,0.08))',
+          background: 'linear-gradient(135deg, var(--td-brand-color-light), var(--td-bg-color-container))',
           border: '1px solid var(--glass-border)',
           backdropFilter: 'blur(20px) saturate(180%)',
           WebkitBackdropFilter: 'blur(20px) saturate(180%)',
@@ -117,9 +117,9 @@ const CertificatePage: React.FC = () => {
               </p>
             </div>
             <button
-              onClick={() => navigate('/ip/certificates/add')}
+              onClick={() => setIsFormOpen(true)}
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium text-white transition-all duration-300 hover:scale-105"
-              style={{ background: 'linear-gradient(135deg, #f59e0b, #6366f1)' }}
+              style={{ background: 'linear-gradient(135deg, var(--pao-primary), var(--pao-violet))' }}
             >
               <Plus className="h-4 w-4" />
               添加证书
@@ -263,6 +263,32 @@ const CertificatePage: React.FC = () => {
           <p className="text-sm" style={{ color: 'var(--pao-text-secondary)' }}>暂无证书或荣誉</p>
         </div>
       )}
+
+      <EntityFormModal
+        isOpen={isFormOpen}
+        onClose={() => setIsFormOpen(false)}
+        onSubmit={async (data) => {
+          await certificateService.addCertificate(data as any);
+          const updated = await certificateService.getCertificates();
+          setCerts(updated);
+        }}
+        title="新增证书"
+        subtitle="记录您的专业证书与资质认证"
+        accentGradient="linear-gradient(135deg, var(--pao-primary), var(--pao-violet))"
+        fields={[
+          { key: 'name', label: '证书名称', type: 'text', required: true, placeholder: '如：PMP项目管理认证' },
+          { key: 'issuer', label: '颁发机构', type: 'text', placeholder: '如：PMI' },
+          { key: 'certNumber', label: '证书编号', type: 'text', placeholder: '证书编号' },
+          { key: 'issueDate', label: '颁发日期', type: 'date' },
+          { key: 'expiryDate', label: '到期日期', type: 'date' },
+          { key: 'status', label: '状态', type: 'select', options: [
+            { value: 'active', label: '有效' },
+            { value: 'expired', label: '已过期' },
+            { value: 'suspended', label: '暂停' },
+          ]},
+          { key: 'score', label: '成绩/等级', type: 'text', placeholder: '如：优秀' },
+        ]}
+      />
     </div>
   )
 }

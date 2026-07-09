@@ -1,8 +1,31 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { clsx } from 'clsx'
+import { Tag, Input, Select, Pagination as TdPagination } from 'tdesign-react'
+import { Search } from 'lucide-react'
 import { formatDataGrade, formatStatus } from '@/utils/format'
 
-// ==================== Premium Glass Card ====================
+type TagTheme = 'default' | 'primary' | 'success' | 'warning' | 'danger'
+
+const GRADE_THEME: Record<string, TagTheme> = {
+  L1: 'danger',
+  L2: 'warning',
+  L3: 'primary',
+  L4: 'default',
+  L5: 'default',
+}
+
+const STATUS_THEME: Record<string, TagTheme> = {
+  holding: 'success', watching: 'warning', sold: 'default',
+  active: 'success', inactive: 'default', closed: 'default',
+  pending: 'warning', expired: 'default', cancelled: 'danger',
+  applied: 'primary', reviewing: 'warning', granted: 'success', rejected: 'danger',
+  planning: 'primary', 'in-progress': 'warning', completed: 'success', paused: 'warning',
+  planned: 'primary', dropped: 'default',
+  normal: 'success', attention: 'warning', abnormal: 'danger',
+  excellent: 'success', good: 'success', fair: 'warning', poor: 'danger',
+}
+
+// ==================== GlassCard (flat TDesign card) ====================
 
 interface GlassCardProps {
   children: React.ReactNode
@@ -40,26 +63,11 @@ interface DataGradeTagProps {
 }
 
 export const DataGradeTag: React.FC<DataGradeTagProps> = ({ grade, size = 'md' }) => {
-  const { label, color, bg } = formatDataGrade(grade)
-  const sizeClass = size === 'sm' ? 'px-2 py-0.5 text-[10px]' : 'px-2.5 py-1 text-xs'
+  const { label } = formatDataGrade(grade)
   return (
-    <span
-      className={clsx(
-        'inline-flex items-center rounded-lg font-semibold leading-none',
-        sizeClass,
-        color,
-        bg,
-      )}
-      style={{
-        backdropFilter: 'blur(8px)',
-        border: '1px solid currentColor',
-        borderWidth: '0 0 0 0',
-        opacity: 0.95,
-      }}
-      aria-label={`数据分级: ${label}`}
-    >
+    <Tag theme={GRADE_THEME[grade] || 'default'} variant="light" size={size === 'sm' ? 'small' : 'medium'}>
       {label}
-    </span>
+    </Tag>
   )
 }
 
@@ -71,30 +79,15 @@ interface StatusTagProps {
 }
 
 export const StatusTag: React.FC<StatusTagProps> = ({ status, size = 'md' }) => {
-  const { label, color, bg, dotColor } = formatStatus(status)
-  const sizeClass = size === 'sm' ? 'px-2 py-0.5 text-[10px]' : 'px-2.5 py-1 text-xs'
+  const { label } = formatStatus(status)
   return (
-    <span
-      className={clsx(
-        'inline-flex items-center gap-1.5 rounded-lg font-medium leading-none',
-        sizeClass,
-        color,
-        bg,
-      )}
-      style={{ backdropFilter: 'blur(8px)' }}
-      aria-label={`状态: ${label}`}
-    >
-      <span
-        className={clsx('inline-block h-1.5 w-1.5 rounded-full flex-shrink-0', dotColor)}
-        style={{ boxShadow: '0 0 6px currentColor' }}
-        aria-hidden="true"
-      />
+    <Tag theme={STATUS_THEME[status] || 'default'} variant="light" size={size === 'sm' ? 'small' : 'medium'}>
       {label}
-    </span>
+    </Tag>
   )
 }
 
-// ==================== StatCard (Premium) ====================
+// ==================== StatCard ====================
 
 interface StatCardProps {
   title: string
@@ -106,6 +99,7 @@ interface StatCardProps {
   dataGrade?: string
   onClick?: () => void
   delay?: number
+  /** @deprecated retained for call-site compatibility; visual accent is now TDesign brand */
   gradient?: string
 }
 
@@ -119,7 +113,6 @@ export const StatCard: React.FC<StatCardProps> = ({
   dataGrade,
   onClick,
   delay = 0,
-  gradient = 'linear-gradient(135deg, #6366F1, #8B5CF6)',
 }) => {
   const isPositive = trend !== undefined && trend >= 0
   const showTrend = trend !== undefined
@@ -137,40 +130,22 @@ export const StatCard: React.FC<StatCardProps> = ({
       onKeyDown={onClick ? (e) => { if (e.key === 'Enter') onClick() } : undefined}
       aria-label={`${title}: ${value}`}
     >
-      {/* Glow blob on hover */}
-      <div
-        className="absolute -top-12 -right-12 w-32 h-32 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
-        style={{ background: gradient, filter: 'blur(40px)', opacity: 0 }}
-        ref={(el) => {
-          if (el) el.style.opacity = '0'
-        }}
-      />
-
       <div className="relative flex items-start justify-between mb-4">
-        {/* Gradient icon container */}
         <div
-          className="w-11 h-11 rounded-xl flex items-center justify-center transition-transform duration-300 group-hover:scale-110"
-          style={{
-            background: gradient,
-            boxShadow: '0 4px 16px rgba(99,102,241,0.25)',
-          }}
+          className="w-11 h-11 rounded-lg flex items-center justify-center transition-transform duration-300 group-hover:scale-110"
+          style={{ background: 'var(--pao-primary)', color: '#fff' }}
         >
-          {icon && (
-            <div className="text-white" style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))' }}>
-              {icon}
-            </div>
-          )}
+          {icon && <div className="text-white">{icon}</div>}
         </div>
 
-        {/* Data grade or trend */}
         <div className="flex items-center gap-2">
           {dataGrade && <DataGradeTag grade={dataGrade} size="sm" />}
           {showTrend && (
             <span
               className="inline-flex items-center gap-0.5 text-xs font-semibold px-2 py-1 rounded-lg"
               style={{
-                color: isPositive ? '#10B981' : '#EF4444',
-                background: isPositive ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
+                color: isPositive ? 'var(--td-success-color)' : 'var(--td-error-color)',
+                background: isPositive ? 'var(--td-success-color-1)' : 'var(--td-error-color-1)',
               }}
             >
               {isPositive ? '↑' : '↓'} {Math.abs(trend).toFixed(1)}%
@@ -179,7 +154,6 @@ export const StatCard: React.FC<StatCardProps> = ({
         </div>
       </div>
 
-      {/* Value */}
       <div className="relative">
         <div
           className="text-2xl font-bold tracking-tight mb-1"
@@ -202,16 +176,15 @@ export const StatCard: React.FC<StatCardProps> = ({
         </div>
       </div>
 
-      {/* Bottom accent line */}
       <div
         className="absolute bottom-0 left-0 h-[2px] w-0 group-hover:w-full transition-all duration-500"
-        style={{ background: gradient }}
+        style={{ background: 'var(--pao-primary)' }}
       />
     </div>
   )
 }
 
-// ==================== ProgressRing (Premium) ====================
+// ==================== ProgressRing ====================
 
 interface ProgressRingProps {
   progress: number
@@ -228,13 +201,12 @@ export const ProgressRing: React.FC<ProgressRingProps> = ({
   strokeWidth = 8,
   label,
   subLabel,
-  color = '#6366F1',
+  color = 'var(--pao-primary)',
 }) => {
   const [animatedProgress, setAnimatedProgress] = useState(0)
   const radius = (size - strokeWidth) / 2
   const circumference = radius * 2 * Math.PI
   const offset = circumference - (animatedProgress / 100) * circumference
-  const gradientId = `progress-gradient-${size}`
 
   useEffect(() => {
     const timer = requestAnimationFrame(() => {
@@ -254,22 +226,6 @@ export const ProgressRing: React.FC<ProgressRingProps> = ({
       aria-valuemax={100}
     >
       <svg width={size} height={size} className="transform -rotate-90">
-        <defs>
-          <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#6366F1" />
-            <stop offset="50%" stopColor="#8B5CF6" />
-            <stop offset="100%" stopColor="#06B6D4" />
-          </linearGradient>
-          <filter id={`glow-${gradientId}`}>
-            <feGaussianBlur stdDeviation="3" result="coloredBlur" />
-            <feMerge>
-              <feMergeNode in="coloredBlur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-        </defs>
-
-        {/* Background ring */}
         <circle
           cx={size / 2}
           cy={size / 2}
@@ -278,28 +234,24 @@ export const ProgressRing: React.FC<ProgressRingProps> = ({
           strokeWidth={strokeWidth}
           fill="none"
         />
-
-        {/* Progress ring with gradient + glow */}
         <circle
           cx={size / 2}
           cy={size / 2}
           r={radius}
-          stroke={`url(#${gradientId})`}
+          stroke={color}
           strokeWidth={strokeWidth}
           fill="none"
           strokeLinecap="round"
           strokeDasharray={circumference}
           strokeDashoffset={offset}
-          filter={`url(#glow-${gradientId})`}
           className="transition-[stroke-dashoffset] duration-1000 ease-[cubic-bezier(0.16,1,0.3,1)]"
         />
       </svg>
 
-      {/* Center text */}
       <div className="absolute flex flex-col items-center justify-center">
         <span
-          className="text-2xl font-bold gradient-text"
-          style={{ fontSize: size > 100 ? '1.5rem' : '1rem' }}
+          className="text-2xl font-bold"
+          style={{ fontSize: size > 100 ? '1.5rem' : '1rem', color: 'var(--pao-text-primary)' }}
         >
           {Math.round(progress)}%
         </span>
@@ -339,7 +291,7 @@ export const Breadcrumb: React.FC<BreadcrumbProps> = ({ items }) => {
             </svg>
           )}
           {item.href ? (
-            <a href={item.href} className="hover:opacity-70 transition-opacity gradient-text font-medium">
+            <a href={item.href} className="hover:opacity-70 transition-opacity font-medium" style={{ color: 'var(--pao-primary)' }}>
               {item.label}
             </a>
           ) : (
@@ -366,34 +318,15 @@ export const SearchInput: React.FC<SearchInputProps> = ({
   onChange,
   placeholder = '搜索...',
 }) => {
-  const [focused, setFocused] = useState(false)
   return (
-    <div className="relative">
-      <svg
-        className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 transition-colors duration-300"
-        style={{ color: focused ? 'var(--pao-primary)' : 'var(--pao-text-tertiary)' }}
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-        aria-hidden="true"
-      >
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-      </svg>
-      <input
-        type="text"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
-        placeholder={placeholder}
-        className="w-64 pl-9 pr-3 py-2 rounded-xl text-sm outline-none transition-all duration-300 glass"
-        style={{
-          color: 'var(--pao-text-primary)',
-          boxShadow: focused ? '0 0 0 3px rgba(99,102,241,0.15)' : 'none',
-        }}
-        aria-label={placeholder}
-      />
-    </div>
+    <Input
+      value={value}
+      onChange={(v) => onChange(v as string)}
+      placeholder={placeholder}
+      prefixIcon={<Search className="h-4 w-4" />}
+      clearable
+      style={{ width: 256 }}
+    />
   )
 }
 
@@ -413,20 +346,13 @@ export const FilterSelect: React.FC<FilterSelectProps> = ({
   placeholder = '全部',
 }) => {
   return (
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="px-3 py-2 rounded-xl text-sm outline-none glass cursor-pointer"
-      style={{ color: 'var(--pao-text-primary)' }}
-      aria-label={placeholder}
-    >
-      <option value="">{placeholder}</option>
-      {options.map((opt) => (
-        <option key={opt.value} value={opt.value}>
-          {opt.label}
-        </option>
-      ))}
-    </select>
+    <Select
+      value={value || undefined}
+      onChange={(v) => onChange((v as string) ?? '')}
+      options={options}
+      placeholder={placeholder}
+      clearable
+    />
   )
 }
 
@@ -444,58 +370,23 @@ export const Pagination: React.FC<PaginationProps> = ({ current, total, pageSize
   if (totalPages <= 1) return null
 
   return (
-    <div
-      className="flex items-center justify-between mt-4 pt-4"
-      style={{ borderTop: '1px solid var(--pao-divider)' }}
-    >
+    <div className="flex items-center justify-between mt-4 pt-4" style={{ borderTop: '1px solid var(--pao-divider)' }}>
       <span className="text-sm" style={{ color: 'var(--pao-text-tertiary)' }}>
         共 {total} 条记录，第 {current}/{totalPages} 页
       </span>
-      <div className="flex items-center gap-1">
-        <button
-          onClick={() => onChange(current - 1)}
-          disabled={current <= 1}
-          className="px-3 py-1.5 text-sm rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-300 hover:scale-105 glass"
-          style={{ color: 'var(--pao-text-secondary)' }}
-          aria-label="上一页"
-        >
-          上一页
-        </button>
-        {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-          <button
-            key={page}
-            onClick={() => onChange(page)}
-            className="px-3 py-1.5 text-sm rounded-lg transition-all duration-300 hover:scale-105"
-            style={
-              page === current
-                ? {
-                    background: 'linear-gradient(135deg, var(--pao-primary), var(--pao-violet))',
-                    color: 'white',
-                    boxShadow: '0 2px 8px rgba(99,102,241,0.3)',
-                  }
-                : { background: 'var(--glass-bg)', color: 'var(--pao-text-secondary)' }
-            }
-            aria-label={`第 ${page} 页`}
-            aria-current={page === current ? 'page' : undefined}
-          >
-            {page}
-          </button>
-        ))}
-        <button
-          onClick={() => onChange(current + 1)}
-          disabled={current >= totalPages}
-          className="px-3 py-1.5 text-sm rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-300 hover:scale-105 glass"
-          style={{ color: 'var(--pao-text-secondary)' }}
-          aria-label="下一页"
-        >
-          下一页
-        </button>
-      </div>
+      <TdPagination
+        total={total}
+        pageSize={pageSize}
+        current={current}
+        showJumper
+        pageSizeOptions={[]}
+        onChange={(pageInfo: { current: number }) => onChange(pageInfo.current)}
+      />
     </div>
   )
 }
 
-// ==================== ModuleProgressBar (Premium) ====================
+// ==================== ModuleProgressBar ====================
 
 interface ModuleProgressBarProps {
   label: string
@@ -517,8 +408,6 @@ export const ModuleProgressBar: React.FC<ModuleProgressBarProps> = ({
     return () => clearTimeout(timer)
   }, [progress, delay])
 
-  const gradient = color || 'linear-gradient(90deg, #6366F1, #8B5CF6)'
-
   return (
     <div className="flex items-center gap-3 anim-fade-in-up" style={{ animationDelay: `${delay * 0.08}s` }}>
       <span className="text-sm w-20 truncate" style={{ color: 'var(--pao-text-secondary)' }}>
@@ -529,23 +418,12 @@ export const ModuleProgressBar: React.FC<ModuleProgressBarProps> = ({
         style={{ background: 'var(--pao-divider)' }}
       >
         <div
-          className="h-full rounded-full transition-all duration-1000 ease-[cubic-bezier(0.16,1,0.3,1)] relative"
+          className="h-full rounded-full transition-all duration-1000 ease-[cubic-bezier(0.16,1,0.3,1)]"
           style={{
             width: `${animatedWidth}%`,
-            background: gradient,
-            boxShadow: '0 0 8px rgba(99,102,241,0.4)',
+            background: color || 'var(--pao-primary)',
           }}
-        >
-          {/* Shimmer overlay */}
-          <div
-            className="absolute inset-0 opacity-30"
-            style={{
-              background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent)',
-              backgroundSize: '200% 100%',
-              animation: 'shimmer 2s infinite',
-            }}
-          />
-        </div>
+        />
       </div>
       <span className="text-sm font-semibold w-10 text-right" style={{ color: 'var(--pao-text-primary)' }}>
         {progress}%
@@ -569,10 +447,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({ icon, title, description
       {icon && (
         <div
           className="mb-4 w-16 h-16 rounded-2xl flex items-center justify-center"
-          style={{
-            background: 'var(--pao-divider)',
-            color: 'var(--pao-text-tertiary)',
-          }}
+          style={{ background: 'var(--pao-divider)', color: 'var(--pao-text-tertiary)' }}
         >
           {icon}
         </div>

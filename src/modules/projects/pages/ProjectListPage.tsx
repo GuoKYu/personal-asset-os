@@ -49,11 +49,11 @@ const projectFormFields: FormField[] = [
 ]
 
 const statusConfig: Record<string, { label: string; color: string; bg: string; bar: string }> = {
-  planning: { label: '规划中', color: 'text-amber-600', bg: 'bg-amber-500/10', bar: 'linear-gradient(90deg, #f59e0b, #fbbf24)' },
-  'in_progress': { label: '进行中', color: 'text-blue-600', bg: 'bg-blue-500/10', bar: 'linear-gradient(90deg, #6366f1, #06b6d4)' },
-  completed: { label: '已完成', color: 'text-green-600', bg: 'bg-green-500/10', bar: 'linear-gradient(90deg, #10b981, #34d399)' },
-  paused: { label: '已暂停', color: 'text-gray-600', bg: 'bg-gray-500/10', bar: 'linear-gradient(90deg, #9ca3af, #d1d5db)' },
-  cancelled: { label: '已取消', color: 'text-red-600', bg: 'bg-red-500/10', bar: 'linear-gradient(90deg, #ef4444, #f87171)' },
+  planning: { label: '规划中', color: 'text-amber-600', bg: 'bg-amber-500/10', bar: 'linear-gradient(90deg, var(--td-warning-color), var(--td-warning-color))' },
+  'in_progress': { label: '进行中', color: 'text-blue-600', bg: 'bg-blue-500/10', bar: 'linear-gradient(90deg, var(--td-brand-color), var(--td-brand-color))' },
+  completed: { label: '已完成', color: 'text-green-600', bg: 'bg-green-500/10', bar: 'linear-gradient(90deg, var(--td-success-color), var(--td-success-color))' },
+  paused: { label: '已暂停', color: 'text-gray-600', bg: 'bg-gray-500/10', bar: 'linear-gradient(90deg, var(--td-text-color-placeholder), var(--td-text-color-placeholder))' },
+  cancelled: { label: '已取消', color: 'text-red-600', bg: 'bg-red-500/10', bar: 'linear-gradient(90deg, var(--td-error-color), var(--td-error-color))' },
 }
 
 const typeLabel = (type: string) => {
@@ -161,7 +161,7 @@ const ProjectListPage: React.FC = () => {
       <div
         className="relative overflow-hidden rounded-2xl mb-6 anim-fade-in-down"
         style={{
-          background: 'linear-gradient(135deg, rgba(99,102,241,0.12), rgba(16,185,129,0.08))',
+          background: 'linear-gradient(135deg, var(--td-brand-color-light), var(--td-bg-color-container))',
           border: '1px solid var(--glass-border)',
           backdropFilter: 'blur(20px) saturate(180%)',
           WebkitBackdropFilter: 'blur(20px) saturate(180%)',
@@ -182,7 +182,7 @@ const ProjectListPage: React.FC = () => {
             <button
               onClick={() => handleAdd()}
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium text-white transition-all duration-300 hover:scale-105"
-              style={{ background: 'linear-gradient(135deg, #6366f1, #10b981)' }}
+              style={{ background: 'linear-gradient(135deg, var(--pao-primary), var(--pao-violet))' }}
             >
               <Plus className="h-4 w-4" />
               新建项目
@@ -393,7 +393,7 @@ const ProjectListPage: React.FC = () => {
         subtitle={editTarget ? '修改项目信息' : '创建新的项目'}
         fields={projectFormFields}
         initialData={editTarget ? (editTarget as unknown as Record<string, unknown>) : undefined}
-        accentGradient="linear-gradient(135deg, #6366f1, #10b981)"
+        accentGradient="linear-gradient(135deg, var(--pao-primary), var(--pao-violet))"
       />
     </div>
   )

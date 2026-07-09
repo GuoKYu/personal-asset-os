@@ -3,7 +3,9 @@
 /**
  * 格式化金额为人民币
  */
-export function formatCurrency(value: number, compact = false): string {
+export function formatCurrency(value: number | null | undefined, compact = false): string {
+  // 防御 undefined/null/NaN（CloudBase 数据缺失时可能发生）
+  if (value == null || isNaN(value)) return '¥0.00';
   if (compact) {
     if (Math.abs(value) >= 100000000) {
       return `¥${(value / 100000000).toFixed(2)}亿`

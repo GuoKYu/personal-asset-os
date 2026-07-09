@@ -1,176 +1,184 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
-  Briefcase,
-  ShieldCheck,
-  Award,
-  TrendingUp,
-  Heart,
-  FileText,
-  FolderKanban,
-  Settings,
-  GripVertical,
-  ToggleLeft,
-  ToggleRight,
-  Eye,
-  EyeOff,
+  Briefcase, ShieldCheck, Award, TrendingUp, Heart, FileText,
+  FolderKanban, LayoutDashboard, Settings,
+  GripVertical, ToggleLeft, ToggleRight, Eye, EyeOff, Loader2,
+  Plus, PanelLeft,
 } from 'lucide-react'
 import { Breadcrumb } from '@/components/ui'
+import { moduleService, type ModuleConfig } from '@/services/moduleService'
+import EntityFormModal, { type FormField } from '@/components/EntityFormModal'
 
-interface ModuleItem {
-  id: string
-  name: string
-  description: string
-  icon: React.ReactNode
-  enabled: boolean
-  order: number
+const ICON_MAP: Record<string, React.ReactNode> = {
+  LayoutDashboard: <LayoutDashboard className="h-5 w-5 text-blue-600" />,
+  Briefcase: <Briefcase className="h-5 w-5 text-green-600" />,
+  ShieldCheck: <ShieldCheck className="h-5 w-5 text-indigo-600" />,
+  Award: <Award className="h-5 w-5 text-purple-600" />,
+  TrendingUp: <TrendingUp className="h-5 w-5 text-orange-600" />,
+  Heart: <Heart className="h-5 w-5 text-red-500" />,
+  FileText: <FileText className="h-5 w-5 text-cyan-600" />,
+  FolderKanban: <FolderKanban className="h-5 w-5 text-yellow-600" />,
 }
 
 const ModuleManagePage: React.FC = () => {
-  const [modules, setModules] = useState<ModuleItem[]>([
-    {
-      id: 'dashboard',
-      name: '工作台',
-      description: '仪表盘首页，概览所有模块数据',
-      icon: <Settings className="h-5 w-5 text-blue-600" />,
-      enabled: true,
-      order: 1,
-    },
-    {
-      id: 'finance',
-      name: '金融资产管理',
-      description: '持仓管理、交易记录、账户管理、资产分析',
-      icon: <Briefcase className="h-5 w-5 text-green-600" />,
-      enabled: true,
-      order: 2,
-    },
-    {
-      id: 'insurance',
-      name: '保险保障管理',
-      description: '保单管理、保障缺口分析、缴费提醒',
-      icon: <ShieldCheck className="h-5 w-5 text-indigo-600" />,
-      enabled: true,
-      order: 3,
-    },
-    {
-      id: 'ip',
-      name: '知识产权管理',
-      description: '软著/专利/商标管理、证书荣誉墙',
-      icon: <Award className="h-5 w-5 text-purple-600" />,
-      enabled: true,
-      order: 4,
-    },
-    {
-      id: 'growth',
-      name: '成长管理',
-      description: '成长路径、学习计划跟踪',
-      icon: <TrendingUp className="h-5 w-5 text-orange-600" />,
-      enabled: true,
-      order: 5,
-    },
-    {
-      id: 'health',
-      name: '健康管理',
-      description: '家庭成员健康信息、体检记录跟踪',
-      icon: <Heart className="h-5 w-5 text-red-500" />,
-      enabled: true,
-      order: 6,
-    },
-    {
-      id: 'documents',
-      name: '文档管理',
-      description: '文档分类存储、检索与下载',
-      icon: <FileText className="h-5 w-5 text-cyan-600" />,
-      enabled: true,
-      order: 7,
-    },
-    {
-      id: 'projects',
-      name: '项目管理',
-      description: '个人和工作项目进度跟踪',
-      icon: <FolderKanban className="h-5 w-5 text-yellow-600" />,
-      enabled: false,
-      order: 8,
-    },
-  ])
+  const [modules, setModules] = useState<ModuleConfig[]>([])
+  const [loading, setLoading] = useState(true)
+  const [isAddOpen, setIsAddOpen] = useState(false)
 
-  const toggleModule = (id: string) => {
-    setModules(modules.map((m) => (m.id === id ? { ...m, enabled: !m.enabled } : m)))
+  useEffect(() => {
+    const load = async () => {
+      try {
+        await moduleService.ensureDefaults()
+        const data = await moduleService.getAll()
+        setModules(data.sort((a, b) => a.order - b.order))
+      } catch (err) {
+        console.error('Failed to load modules:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    load()
+  }, [])
+
+  const toggleModule = async (key: string) => {
+    setModules(prev => prev.map(m => m.key === key ? { ...m, enabled: !m.enabled } : m))
+    try {
+      await moduleService.toggleEnabled(key)
+    } catch (err) {
+      console.error('Failed to toggle module:', err)
+      // rollback on failure
+      setModules(prev => prev.map(m => m.key === key ? { ...m, enabled: !m.enabled } : m))
+    }
   }
 
-  const enabledCount = modules.filter((m) => m.enabled).length
+  const toggleDashboard = async (key: string) => {
+    setModules(prev => prev.map(m => m.key === key ? { ...m, showOnDashboard: !m.showOnDashboard } : m))
+    try {
+      await moduleService.toggleDashboard(key)
+    } catch (err) {
+      console.error('Failed to toggle dashboard:', err)
+      setModules(prev => prev.map(m => m.key === key ? { ...m, showOnDashboard: !m.showOnDashboard } : m))
+    }
+  }
+
+  const enabledCount = modules.filter(m => m.enabled).length
+
+  if (loading) {
+    return (
+      <div className="min-h-64 flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" style={{ color: 'var(--pao-primary)' }} />
+      </div>
+    )
+  }
 
   return (
-    <div className="max-w-3xl mx-auto px-6 py-6" aria-label="模块管理">
+    <div className="max-w-3xl mx-auto px-6 py-6">
       <Breadcrumb items={[
         { label: '系统设置', href: '/settings' },
         { label: '模块管理' },
       ]} />
 
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">模块管理</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          已启用 {enabledCount}/{modules.length} 个模块，拖拽可调整排序
-        </p>
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold" style={{ color: 'var(--pao-text-primary)' }}>模块管理</h1>
+          <p className="text-sm mt-1" style={{ color: 'var(--pao-text-secondary)' }}>
+            已启用 {enabledCount}/{modules.length} 个模块
+          </p>
+        </div>
+        <button
+          onClick={() => setIsAddOpen(true)}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-medium transition-all duration-300 hover:scale-105"
+          style={{ background: 'linear-gradient(135deg, var(--pao-primary), var(--pao-violet))' }}
+        >
+          <Plus className="h-4 w-4" />
+          新增模块
+        </button>
       </div>
 
       <div className="space-y-3">
-        {modules
-          .sort((a, b) => a.order - b.order)
-          .map((mod) => (
-            <div
-              key={mod.id}
-              className={`rounded-xl border shadow-sm p-4 flex items-center gap-4 transition-colors ${
-                mod.enabled ? 'bg-white border-gray-100' : 'bg-gray-50 border-gray-200 opacity-70'
-              }`}
-              aria-label={`${mod.name} 模块`}
-            >
-              {/* Drag handle */}
-              <div className="cursor-grab text-gray-300 hover:text-gray-500" aria-label="拖拽排序">
-                <GripVertical className="h-5 w-5" />
-              </div>
-
-              {/* Icon */}
-              <div className="h-10 w-10 rounded-lg bg-gray-50 flex items-center justify-center flex-shrink-0">
-                {mod.icon}
-              </div>
-
-              {/* Info */}
-              <div className="flex-1 min-w-0">
-                <h3 className="text-sm font-semibold text-gray-900">{mod.name}</h3>
-                <p className="text-xs text-gray-500 mt-0.5">{mod.description}</p>
-              </div>
-
-              {/* Status */}
-              <div className="flex items-center gap-2">
-                {mod.enabled ? (
-                  <Eye className="h-4 w-4 text-green-500" />
-                ) : (
-                  <EyeOff className="h-4 w-4 text-gray-400" />
-                )}
-              </div>
-
-              {/* Toggle */}
-              <button
-                onClick={() => toggleModule(mod.id)}
-                className="focus:outline-none"
-                aria-label={`${mod.enabled ? '禁用' : '启用'} ${mod.name}`}
-                aria-pressed={mod.enabled}
-              >
-                {mod.enabled ? (
-                  <ToggleRight className="h-6 w-6 text-blue-600" />
-                ) : (
-                  <ToggleLeft className="h-6 w-6 text-gray-300" />
-                )}
-              </button>
+        {modules.map((mod) => (
+          <div
+            key={mod.key}
+            className="surface-card p-4 flex items-center gap-4 transition-colors"
+            style={{ opacity: mod.enabled ? 1 : 0.7 }}
+          >
+            <div className="cursor-grab" style={{ color: 'var(--pao-text-tertiary)' }}>
+              <GripVertical className="h-5 w-5" />
             </div>
-          ))}
+            <div className="h-10 w-10 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'var(--pao-bg-hover)' }}>
+              {ICON_MAP[mod.icon] || <Settings className="h-5 w-5" style={{ color: 'var(--pao-text-tertiary)' }} />}
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="text-sm font-semibold" style={{ color: 'var(--pao-text-primary)' }}>{mod.name}</h3>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--pao-text-tertiary)' }}>{mod.description}</p>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => toggleDashboard(mod.key)}
+                className="flex items-center gap-1 px-2 py-1 rounded-md text-xs transition-colors"
+                style={{
+                  background: mod.showOnDashboard ? 'var(--td-brand-color-light)' : 'var(--pao-bg-hover)',
+                  color: mod.showOnDashboard ? 'var(--pao-primary)' : 'var(--pao-text-tertiary)',
+                }}
+                title={mod.showOnDashboard ? '已显示在总览' : '未在总览显示'}
+              >
+                <PanelLeft className="h-3.5 w-3.5" />
+                总览{mod.showOnDashboard ? '' : '隐藏'}
+              </button>
+              {mod.enabled ? (
+                <Eye className="h-4 w-4 text-green-500" />
+              ) : (
+                <EyeOff className="h-4 w-4" style={{ color: 'var(--pao-text-tertiary)' }} />
+              )}
+            </div>
+            <button
+              onClick={() => toggleModule(mod.key)}
+              className="focus:outline-none"
+              aria-label={`${mod.enabled ? '禁用' : '启用'} ${mod.name}`}
+            >
+              {mod.enabled ? (
+                <ToggleRight className="h-6 w-6" style={{ color: 'var(--pao-primary)' }} />
+              ) : (
+                <ToggleLeft className="h-6 w-6" style={{ color: 'var(--pao-text-tertiary)' }} />
+              )}
+            </button>
+          </div>
+        ))}
       </div>
 
-      <div className="mt-6 p-4 bg-blue-50 rounded-xl">
-        <p className="text-sm text-blue-700">
-          提示：禁用的模块将在侧边栏中隐藏，但已录入的数据不会被删除。需要时可重新启用。
+      <div className="mt-6 p-4 rounded-xl" style={{ background: 'var(--td-brand-color-light)' }}>
+        <p className="text-sm" style={{ color: 'var(--pao-primary)' }}>
+          提示：禁用的模块将在侧边栏中隐藏，但已录入的数据不会被删除。需要时可重新启用。<br />
+          「总览显示」控制模块是否出现在 Dashboard 首页。
         </p>
       </div>
+
+      <EntityFormModal
+        isOpen={isAddOpen}
+        onClose={() => setIsAddOpen(false)}
+        onSubmit={async (data) => {
+          await moduleService.addModule({
+            key: (data.key as string).toLowerCase().replace(/\s+/g, '_'),
+            name: data.name as string,
+            description: (data.description as string) || '',
+            icon: data.icon as string,
+            enabled: true,
+            showOnDashboard: false,
+            order: modules.length + 1,
+          });
+          const updated = await moduleService.getAll();
+          setModules(updated.sort((a, b) => a.order - b.order));
+        }}
+        title="新增模块"
+        subtitle="扩展系统功能，添加自定义模块或子系统"
+        accentGradient="linear-gradient(135deg, var(--pao-primary), var(--pao-violet))"
+        fields={[
+          { key: 'name', label: '模块名称', type: 'text', required: true, placeholder: '如：投资研究' },
+          { key: 'key', label: '模块标识', type: 'text', required: true, placeholder: '如：investment_research（拼音）' },
+          { key: 'description', label: '模块描述', type: 'textarea', placeholder: '简要描述这个模块的功能...' },
+          { key: 'icon', label: 'Lucide 图标名', type: 'text', placeholder: '如：BarChart3 / Brain / Target' },
+        ]}
+      />
     </div>
   )
 }

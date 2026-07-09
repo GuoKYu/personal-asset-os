@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import {
   AlertTriangle,
@@ -10,40 +10,80 @@ import {
   TrendingDown,
   Shield,
   Info,
+  Loader2,
 } from 'lucide-react'
-import { mockHoldings, mockTransactions } from '@/db/mock-data'
+import { holdingService } from '@/services/holdingService'
+import { transactionService } from '@/services/transactionService'
+import type { Holding, Transaction } from '@/types'
 import { formatCurrency, formatPercent, formatDate } from '@/utils/format'
 import { Breadcrumb, DataGradeTag, StatusTag } from '@/components/ui'
 
 const HoldingDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>()
-  const holding = mockHoldings.find((h) => h.id === id)
+  const [holding, setHolding] = useState<Holding | null>(null)
+  const [transactions, setTransactions] = useState<Transaction[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   // Inline edit for stop-loss
   const [editingStopLoss, setEditingStopLoss] = useState(false)
-  const [stopLossValue, setStopLossValue] = useState(holding?.stopLossPrice ?? 0)
+  const [stopLossValue, setStopLossValue] = useState(0)
 
   // Discipline self-review
   const [disciplineReview, setDisciplineReview] = useState('')
   const [disciplineRating, setDisciplineRating] = useState<'excellent' | 'good' | 'fair' | 'poor'>('good')
   const [reviewSubmitted, setReviewSubmitted] = useState(false)
 
-  if (!holding) {
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!id) return
+      try {
+        setLoading(true)
+        setError(null)
+        const holdingData = await holdingService.getHoldingById(id)
+        if (!holdingData) {
+          setError('未找到持仓信息')
+          setLoading(false)
+          return
+        }
+        setHolding(holdingData)
+        setStopLossValue(holdingData.stopLossPrice ?? 0)
+
+        const txns = await transactionService.getTransactions({ symbol: holdingData.symbol })
+        setTransactions(txns)
+      } catch (err) {
+        console.error('Failed to fetch holding detail:', err)
+        setError('加载数据失败，请稍后重试')
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchData()
+  }, [id])
+
+  if (loading) {
+    return (
+      <div className="max-w-4xl mx-auto px-6 py-12 flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" style={{ color: 'var(--pao-primary)' }} />
+        <span className="ml-3 text-sm" style={{ color: 'var(--pao-text-tertiary)' }}>加载持仓详情...</span>
+      </div>
+    )
+  }
+
+  if (error || !holding) {
     return (
       <div className="max-w-4xl mx-auto px-6 py-12 text-center">
         <Info className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-        <h2 className="text-lg font-medium text-gray-900">未找到持仓信息</h2>
+        <h2 className="text-lg font-medium text-gray-900">{error || '未找到持仓信息'}</h2>
         <Link to="/finance/holdings" className="text-blue-600 text-sm mt-2 inline-block">返回持仓列表</Link>
       </div>
     )
   }
 
-  const pnl = (holding.currentPrice - holding.costPrice) * holding.quantity
-  const pnlPercent = ((holding.currentPrice - holding.costPrice) / holding.costPrice) * 100
-  const nearStopLoss = holding.currentPrice <= holding.stopLossPrice * 1.08
-  const breachedStopLoss = holding.currentPrice <= holding.stopLossPrice
-
-  const relatedTransactions = mockTransactions.filter((t) => t.symbol === holding.symbol)
+  const pnl = (holding.currentPrice - holding.avgCost) * holding.quantity
+  const pnlPercent = holding.avgCost > 0 ? ((holding.currentPrice - holding.avgCost) / holding.avgCost) * 100 : 0
+  const nearStopLoss = holding.stopLossPrice ? holding.currentPrice <= holding.stopLossPrice * 1.08 : false
+  const breachedStopLoss = holding.stopLossPrice ? holding.currentPrice <= holding.stopLossPrice : false
 
   const handleSaveStopLoss = () => {
     setEditingStopLoss(false)
@@ -73,13 +113,13 @@ const HoldingDetailPage: React.FC = () => {
       {breachedStopLoss && (
         <div className="flex items-center gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm mb-5" role="alert">
           <XCircle className="h-5 w-5 flex-shrink-0" />
-          <span>止损价已触发！当前价 {formatCurrency(holding.currentPrice)} 低于止损价 {formatCurrency(holding.stopLossPrice)}，请立即处理。</span>
+          <span>止损价已触发！当前价 {formatCurrency(holding.currentPrice)} 低于止损价 {formatCurrency(holding.stopLossPrice ?? 0)}，请立即处理。</span>
         </div>
       )}
       {!breachedStopLoss && nearStopLoss && (
         <div className="flex items-center gap-2 px-4 py-3 bg-orange-50 border border-orange-200 rounded-xl text-orange-700 text-sm mb-5" role="alert">
           <AlertTriangle className="h-5 w-5 flex-shrink-0" />
-          <span>价格接近止损线！当前价 {formatCurrency(holding.currentPrice)}，止损价 {formatCurrency(holding.stopLossPrice)}，请密切关注。</span>
+          <span>价格接近止损线！当前价 {formatCurrency(holding.currentPrice)}，止损价 {formatCurrency(holding.stopLossPrice ?? 0)}，请密切关注。</span>
         </div>
       )}
 
@@ -92,7 +132,7 @@ const HoldingDetailPage: React.FC = () => {
             <span className="px-2 py-0.5 text-xs rounded bg-gray-100 text-gray-600">{holding.market}</span>
           </div>
           <div className="flex items-center gap-2">
-            <DataGradeTag grade={holding.dataGrade} />
+            <DataGradeTag grade={holding.dataGrade as string} />
             <StatusTag status={holding.status} />
           </div>
         </div>
@@ -104,7 +144,7 @@ const HoldingDetailPage: React.FC = () => {
           </div>
           <div className="p-3 bg-gray-50 rounded-lg">
             <div className="text-xs text-gray-500 mb-1">成本价</div>
-            <div className="text-lg font-semibold tabular-nums">{formatCurrency(holding.costPrice)}</div>
+            <div className="text-lg font-semibold tabular-nums">{formatCurrency(holding.avgCost)}</div>
           </div>
           <div className="p-3 bg-gray-50 rounded-lg">
             <div className="text-xs text-gray-500 mb-1">当前价</div>
@@ -139,7 +179,7 @@ const HoldingDetailPage: React.FC = () => {
               <button onClick={handleSaveStopLoss} className="p-1 text-green-600 hover:bg-green-50 rounded" aria-label="保存止损价">
                 <Check className="h-4 w-4" />
               </button>
-              <button onClick={() => { setEditingStopLoss(false); setStopLossValue(holding.stopLossPrice) }} className="p-1 text-gray-400 hover:bg-gray-50 rounded" aria-label="取消编辑">
+              <button onClick={() => { setEditingStopLoss(false); setStopLossValue(holding.stopLossPrice ?? 0) }} className="p-1 text-gray-400 hover:bg-gray-50 rounded" aria-label="取消编辑">
                 <X className="h-4 w-4" />
               </button>
             </div>
@@ -153,13 +193,13 @@ const HoldingDetailPage: React.FC = () => {
           )}
         </div>
 
-        {/* Buy Reason */}
+        {/* Buy Reason / Notes */}
         <div className="mt-4 p-3 bg-blue-50/50 rounded-lg">
           <div className="flex items-center gap-2 mb-1">
             <Info className="h-4 w-4 text-blue-600" />
             <span className="text-sm font-medium text-gray-700">买入理由</span>
           </div>
-          <p className="text-sm text-gray-600">{holding.buyReason}</p>
+          <p className="text-sm text-gray-600">{holding.notes || '暂无记录'}</p>
         </div>
       </div>
 
@@ -169,26 +209,26 @@ const HoldingDetailPage: React.FC = () => {
           <TrendingUp className="h-4 w-4 text-blue-600" />
           交易记录
         </h3>
-        {relatedTransactions.length === 0 ? (
+        {transactions.length === 0 ? (
           <p className="text-sm text-gray-400 py-4 text-center">暂无相关交易记录</p>
         ) : (
           <div className="space-y-3">
-            {relatedTransactions.map((tx) => (
+            {transactions.map((tx) => (
               <div key={tx.id} className="flex items-start gap-3 pl-4 border-l-2 border-gray-100 pb-3 last:pb-0">
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
-                    <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${tx.type === 'buy' ? 'bg-green-50 text-green-600' : tx.type === 'sell' ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-600'}`}>
-                      {tx.type === 'buy' ? '买入' : tx.type === 'sell' ? '卖出' : tx.type === 'dividend' ? '分红' : '转账'}
+                    <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${tx.transactionType === 'buy' ? 'bg-green-50 text-green-600' : tx.transactionType === 'sell' ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-600'}`}>
+                      {tx.transactionType === 'buy' ? '买入' : tx.transactionType === 'sell' ? '卖出' : tx.transactionType === 'dividend' ? '分红' : '转账'}
                     </span>
                     <span className="text-sm font-medium text-gray-900">{formatCurrency(tx.amount)}</span>
                   </div>
                   <div className="text-xs text-gray-500 mt-0.5">
-                    {tx.type !== 'transfer' && tx.type !== 'dividend' && `${tx.quantity}股 @ ${formatCurrency(tx.price)}`}
+                    {tx.transactionType !== 'transfer_in' && tx.transactionType !== 'transfer_out' && tx.transactionType !== 'dividend' && `${tx.quantity ?? 0}股 @ ${formatCurrency(tx.price ?? 0)}`}
                     {tx.fee > 0 && ` · 手续费 ${formatCurrency(tx.fee)}`}
                   </div>
-                  <p className="text-xs text-gray-500 mt-0.5">{tx.reason}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">{tx.notes || ''}</p>
                 </div>
-                <span className="text-xs text-gray-400 whitespace-nowrap">{formatDate(tx.date)}</span>
+                <span className="text-xs text-gray-400 whitespace-nowrap">{formatDate(tx.tradeDate)}</span>
               </div>
             ))}
           </div>

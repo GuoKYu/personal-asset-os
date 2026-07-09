@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
 import {
   Plus,
   Wallet,
@@ -8,6 +7,7 @@ import {
   MoreHorizontal,
   TrendingUp,
 } from 'lucide-react'
+import EntityFormModal, { type FormField } from '@/components/EntityFormModal'
 import { accountService } from '@/services/accountService'
 import type { FinancialAccount } from '@/types'
 import { formatCurrency, formatPercent } from '@/utils/format'
@@ -17,6 +17,7 @@ import ParticleBackground from '@/components/effects/ParticleBackground'
 const AccountListPage: React.FC = () => {
   const [accounts, setAccounts] = useState<FinancialAccount[]>([])
   const [loading, setLoading] = useState(true)
+  const [isFormOpen, setIsFormOpen] = useState(false)
 
   useEffect(() => {
     const loadAccounts = async () => {
@@ -57,10 +58,10 @@ const AccountListPage: React.FC = () => {
 
   const typeGradient = (type: string) => {
     const map: Record<string, string> = {
-      brokerage: 'linear-gradient(135deg, #6366F1, #818CF8)',
-      bank: 'linear-gradient(135deg, #10B981, #34D399)',
-      wallet: 'linear-gradient(135deg, #F59E0B, #FBBF24)',
-      other: 'linear-gradient(135deg, #6B7280, #9CA3AF)',
+      brokerage: 'linear-gradient(135deg, var(--pao-primary), var(--pao-violet))',
+      bank: 'linear-gradient(135deg, var(--pao-primary), var(--pao-violet))',
+      wallet: 'linear-gradient(135deg, var(--pao-primary), var(--pao-violet))',
+      other: 'linear-gradient(135deg, var(--pao-primary), var(--pao-violet))',
     }
     return map[type] || map.other
   }
@@ -71,7 +72,7 @@ const AccountListPage: React.FC = () => {
       <div
         className="relative overflow-hidden rounded-2xl mb-6 anim-fade-in-down"
         style={{
-          background: 'linear-gradient(135deg, rgba(6,182,212,0.12), rgba(99,102,241,0.08))',
+          background: 'linear-gradient(135deg, var(--td-brand-color-light), var(--td-bg-color-container))',
           border: '1px solid var(--glass-border)',
           backdropFilter: 'blur(20px) saturate(180%)',
           WebkitBackdropFilter: 'blur(20px) saturate(180%)',
@@ -92,18 +93,18 @@ const AccountListPage: React.FC = () => {
                 </span>
               </p>
             </div>
-            <Link
-              to="/finance/accounts/add"
+            <button
+              onClick={() => setIsFormOpen(true)}
               className="px-4 py-2 rounded-lg text-white font-medium flex items-center gap-2 hover:scale-105 transition-all duration-300"
               style={{
-                background: 'linear-gradient(135deg, var(--pao-cyan), #0891B2)',
+                background: 'linear-gradient(135deg, var(--pao-primary), var(--pao-violet))',
                 boxShadow: '0 4px 12px rgba(6,182,212,0.3)',
               }}
               aria-label="新增账户"
             >
               <Plus className="h-4 w-4" />
               新增账户
-            </Link>
+            </button>
           </div>
         </div>
       </div>
@@ -165,6 +166,44 @@ const AccountListPage: React.FC = () => {
           ))}
         </div>
       )}
+
+      <EntityFormModal
+        isOpen={isFormOpen}
+        onClose={() => setIsFormOpen(false)}
+        onSubmit={async (data) => {
+          await accountService.addAccount(data as any);
+          const updated = await accountService.getAccounts();
+          setAccounts(updated);
+        }}
+        title="新增账户"
+        subtitle="添加一个金融账户"
+        accentGradient="linear-gradient(135deg, var(--pao-primary), var(--pao-violet))"
+        fields={[
+          { key: 'name', label: '账户名称', type: 'text', required: true, placeholder: '如：工商银行工资卡' },
+          { key: 'institution', label: '开户机构', type: 'text', placeholder: '如：工商银行' },
+          { key: 'type', label: '账户类型', type: 'select', options: [
+            { value: 'checking', label: '活期账户' },
+            { value: 'savings', label: '储蓄账户' },
+            { value: 'credit', label: '信用卡' },
+            { value: 'investment', label: '投资账户' },
+            { value: 'brokerage', label: '券商账户' },
+            { value: 'retirement', label: '养老金' },
+            { value: 'other', label: '其他' },
+          ]},
+          { key: 'accountNumber', label: '账号', type: 'text', placeholder: '后4位即可' },
+          { key: 'balance', label: '余额', type: 'number', min: 0, defaultValue: 0 },
+          { key: 'currency', label: '币种', type: 'select', options: [
+            { value: 'CNY', label: '人民币 (CNY)' },
+            { value: 'USD', label: '美元 (USD)' },
+            { value: 'HKD', label: '港币 (HKD)' },
+          ]},
+          { key: 'status', label: '状态', type: 'select', options: [
+            { value: 'active', label: '正常' },
+            { value: 'inactive', label: '休眠' },
+            { value: 'closed', label: '已销户' },
+          ]},
+        ]}
+      />
     </div>
   )
 }

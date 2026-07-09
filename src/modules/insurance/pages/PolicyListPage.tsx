@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import EntityFormModal, { type FormField } from '@/components/EntityFormModal';
 import {
   Plus,
   ShieldCheck,
@@ -27,6 +28,7 @@ const PolicyListPage: React.FC = () => {
   const [page, setPage] = useState(1);
   const pageSize = 12;
   const [loading, setLoading] = useState(true);
+  const [isFormOpen, setIsFormOpen] = useState(false);
 
   // Load policies from Dexie.js
   useEffect(() => {
@@ -65,7 +67,7 @@ const PolicyListPage: React.FC = () => {
       <div
         className="relative overflow-hidden rounded-2xl mb-6 anim-fade-in-down"
         style={{
-          background: 'linear-gradient(135deg, rgba(99,102,241,0.12), rgba(6,182,212,0.08))',
+          background: 'linear-gradient(135deg, var(--td-brand-color-light), var(--td-bg-color-container))',
           border: '1px solid var(--glass-border)',
           backdropFilter: 'blur(20px) saturate(180%)',
           WebkitBackdropFilter: 'blur(20px) saturate(180%)',
@@ -96,18 +98,18 @@ const PolicyListPage: React.FC = () => {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <Link
-                to="/insurance/policies/add"
+              <button
+                onClick={() => setIsFormOpen(true)}
                 className="px-4 py-2 rounded-lg text-white font-medium flex items-center gap-2 hover:scale-105 transition-all duration-300"
                 style={{
                   background: 'linear-gradient(135deg, var(--pao-primary), var(--pao-primary-dark))',
-                  boxShadow: '0 4px 12px rgba(99,102,241,0.3)',
+                  boxShadow: '0 4px 12px var(--td-shadow-2)',
                 }}
                 aria-label="新增保单"
               >
                 <Plus className="h-4 w-4" />
                 新增保单
-              </Link>
+              </button>
             </div>
           </div>
         </div>
@@ -397,6 +399,42 @@ const PolicyListPage: React.FC = () => {
           })}
         </div>
       )}
+
+      <EntityFormModal
+        isOpen={isFormOpen}
+        onClose={() => setIsFormOpen(false)}
+        onSubmit={async (data) => {
+          await insuranceService.addPolicy(data as any);
+          const updated = await insuranceService.getPolicies();
+          setPolicies(updated);
+        }}
+        title="新增保单"
+        subtitle="添加保险保单，系统管理您的保障计划"
+        accentGradient="linear-gradient(135deg, var(--pao-primary), var(--pao-violet))"
+        fields={[
+          { key: 'name', label: '保单名称', type: 'text', required: true, placeholder: '如：平安e生保' },
+          { key: 'policyNumber', label: '保单号', type: 'text', required: true, placeholder: '保单号' },
+          { key: 'insurer', label: '保险公司', type: 'text', required: true, placeholder: '如：平安保险' },
+          { key: 'policyType', label: '保单类型', type: 'select', options: [
+            { value: 'health', label: '医疗险' },
+            { value: 'life', label: '寿险' },
+            { value: 'accident', label: '意外险' },
+            { value: 'property', label: '财产险' },
+            { value: 'annuity', label: '年金险' },
+            { value: 'auto', label: '车险' },
+            { value: 'other', label: '其他' },
+          ]},
+          { key: 'coverageAmount', label: '保额', type: 'number', min: 0, defaultValue: 0 },
+          { key: 'premiumAnnual', label: '年保费', type: 'number', min: 0, defaultValue: 0 },
+          { key: 'startDate', label: '生效日期', type: 'date' },
+          { key: 'endDate', label: '到期日期', type: 'date' },
+          { key: 'status', label: '状态', type: 'select', options: [
+            { value: 'active', label: '生效中' },
+            { value: 'inactive', label: '暂停' },
+            { value: 'expired', label: '已失效' },
+          ]},
+        ]}
+      />
     </div>
   );
 };

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useEffect, useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Plus,
@@ -8,12 +8,16 @@ import {
   Gift,
   ArrowLeftRight,
   Filter,
+  Loader2,
 } from 'lucide-react'
-import { mockTransactions } from '@/db/mock-data'
+import { transactionService } from '@/services/transactionService'
+import type { Transaction } from '@/types'
 import { formatCurrency, formatDate } from '@/utils/format'
 import { Breadcrumb, SearchInput, FilterSelect, Pagination as Pager, StatusTag } from '@/components/ui'
 
 const TransactionListPage: React.FC = () => {
+  const [transactions, setTransactions] = useState<Transaction[]>([])
+  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
   const [symbolFilter, setSymbolFilter] = useState('')
@@ -22,34 +26,67 @@ const TransactionListPage: React.FC = () => {
   const [page, setPage] = useState(1)
   const pageSize = 10
 
-  const uniqueSymbols = useMemo(() => [...new Set(mockTransactions.map((t) => t.symbol).filter(Boolean))], [])
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true)
+        const data = await transactionService.getTransactions()
+        setTransactions(data)
+      } catch (err) {
+        console.error('Failed to fetch transactions:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchData()
+  }, [])
+
+  const uniqueSymbols = useMemo(() => [...new Set(transactions.map((t) => t.symbol).filter(Boolean))], [transactions])
 
   const filtered = useMemo(() => {
-    return mockTransactions.filter((t) => {
-      if (search && !t.symbol.toLowerCase().includes(search.toLowerCase()) && !t.reason.includes(search)) return false
-      if (typeFilter && t.type !== typeFilter) return false
+    return transactions.filter((t) => {
+      if (search && !(t.symbol?.toLowerCase().includes(search.toLowerCase())) && !(t.notes?.includes(search))) return false
+      if (typeFilter && t.transactionType !== typeFilter) return false
       if (symbolFilter && t.symbol !== symbolFilter) return false
-      if (dateFrom && t.date < dateFrom) return false
-      if (dateTo && t.date > dateTo) return false
+      if (dateFrom && t.tradeDate < dateFrom) return false
+      if (dateTo && t.tradeDate > dateTo) return false
       return true
     })
-  }, [search, typeFilter, symbolFilter, dateFrom, dateTo])
+  }, [transactions, search, typeFilter, symbolFilter, dateFrom, dateTo])
 
   const paged = filtered.slice((page - 1) * pageSize, page * pageSize)
 
-  const typeIcon = (type: string) => {
+  const typeIcon = (transactionType: string) => {
     const map: Record<string, React.ReactNode> = {
       buy: <ArrowDownCircle className="h-4 w-4 text-green-600" />,
       sell: <ArrowUpCircle className="h-4 w-4 text-red-600" />,
       dividend: <Gift className="h-4 w-4 text-blue-600" />,
-      transfer: <ArrowLeftRight className="h-4 w-4 text-gray-600" />,
+      transfer_in: <ArrowLeftRight className="h-4 w-4 text-gray-600" />,
+      transfer_out: <ArrowLeftRight className="h-4 w-4 text-gray-600" />,
     }
-    return map[type] || null
+    return map[transactionType] || null
   }
 
-  const typeLabel = (type: string) => {
-    const map: Record<string, string> = { buy: '买入', sell: '卖出', dividend: '分红', transfer: '转账' }
-    return map[type] || type
+  const typeLabel = (transactionType: string) => {
+    const map: Record<string, string> = {
+      buy: '买入',
+      sell: '卖出',
+      dividend: '分红',
+      transfer_in: '转入',
+      transfer_out: '转出',
+      interest: '利息',
+      fee: '费用',
+    }
+    return map[transactionType] || transactionType
+  }
+
+  if (loading) {
+    return (
+      <div className="max-w-7xl mx-auto px-6 py-12 flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+        <span className="ml-3 text-sm text-gray-500">加载交易记录...</span>
+      </div>
+    )
   }
 
   return (
@@ -94,14 +131,15 @@ const TransactionListPage: React.FC = () => {
             { value: 'buy', label: '买入' },
             { value: 'sell', label: '卖出' },
             { value: 'dividend', label: '分红' },
-            { value: 'transfer', label: '转账' },
+            { value: 'transfer_in', label: '转入' },
+            { value: 'transfer_out', label: '转出' },
           ]}
         />
         <FilterSelect
           value={symbolFilter}
           onChange={setSymbolFilter}
           placeholder="全部标的"
-          options={uniqueSymbols.map((s) => ({ value: s, label: s }))}
+          options={uniqueSymbols.map((s) => ({ value: s ?? '', label: s ?? '' }))}
         />
         <div className="flex items-center gap-1">
           <input
@@ -135,38 +173,38 @@ const TransactionListPage: React.FC = () => {
                 <th className="px-4 py-3 text-right font-medium">数量</th>
                 <th className="px-4 py-3 text-right font-medium">金额</th>
                 <th className="px-4 py-3 text-right font-medium">手续费</th>
-                <th className="px-4 py-3 text-left font-medium">原因</th>
-                <th className="px-4 py-3 text-center font-medium">纪律</th>
+                <th className="px-4 py-3 text-left font-medium">说明</th>
+                <th className="px-4 py-3 text-center font-medium">状态</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {paged.map((tx) => (
                 <tr key={tx.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{formatDate(tx.date)}</td>
+                  <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{formatDate(tx.tradeDate)}</td>
                   <td className="px-4 py-3">
                     <span className="inline-flex items-center gap-1 text-sm">
-                      {typeIcon(tx.type)}
-                      <span className={tx.type === 'buy' ? 'text-green-600' : tx.type === 'sell' ? 'text-red-600' : 'text-gray-600'}>
-                        {typeLabel(tx.type)}
+                      {typeIcon(tx.transactionType)}
+                      <span className={tx.transactionType === 'buy' ? 'text-green-600' : tx.transactionType === 'sell' ? 'text-red-600' : 'text-gray-600'}>
+                        {typeLabel(tx.transactionType)}
                       </span>
                     </span>
                   </td>
                   <td className="px-4 py-3 font-medium text-gray-900">{tx.symbol || '--'}</td>
                   <td className="px-4 py-3 text-right tabular-nums text-gray-600">
-                    {tx.price > 0 ? formatCurrency(tx.price) : '--'}
+                    {tx.price != null && tx.price > 0 ? formatCurrency(tx.price) : '--'}
                   </td>
-                  <td className="px-4 py-3 text-right tabular-nums">{tx.quantity > 0 ? tx.quantity : '--'}</td>
+                  <td className="px-4 py-3 text-right tabular-nums">{tx.quantity != null && tx.quantity > 0 ? tx.quantity : '--'}</td>
                   <td className={`px-4 py-3 text-right tabular-nums font-medium ${
-                    tx.type === 'buy' ? 'text-red-600' : tx.type === 'sell' || tx.type === 'dividend' ? 'text-green-600' : 'text-gray-900'
+                    tx.transactionType === 'buy' ? 'text-red-600' : tx.transactionType === 'sell' || tx.transactionType === 'dividend' ? 'text-green-600' : 'text-gray-900'
                   }`}>
-                    {tx.type === 'buy' ? '-' : tx.type === 'transfer' ? '' : '+'}{formatCurrency(tx.amount)}
+                    {tx.transactionType === 'buy' ? '-' : tx.transactionType === 'transfer_out' ? '' : '+'}{formatCurrency(tx.amount)}
                   </td>
                   <td className="px-4 py-3 text-right tabular-nums text-gray-500">
                     {tx.fee > 0 ? formatCurrency(tx.fee) : '--'}
                   </td>
-                  <td className="px-4 py-3 text-gray-600 max-w-[200px] truncate">{tx.reason}</td>
+                  <td className="px-4 py-3 text-gray-600 max-w-[200px] truncate">{tx.notes || ''}</td>
                   <td className="px-4 py-3 text-center">
-                    <StatusTag status={tx.discipline} size="sm" />
+                    <StatusTag status={tx.status} size="sm" />
                   </td>
                 </tr>
               ))}

@@ -1,8 +1,9 @@
-import { db, writeAuditLog } from '../db';
+import { db } from '@/lib/cloudbase';
+import { writeAuditLog, generateId, now, safeAdd , extractList } from "@/lib/cloudbaseCrud";
 import type { Document, DocumentCategory, DocumentStatus } from '../types';
 
 /**
- * Document Service — Dexie.js data layer for Documents module
+ * Document Service — CloudBase NoSQL data layer for Documents module
  * 文档管理数据服务层 - 封装所有文档管理相关的数据库操作
  */
 export const documentService = {
@@ -12,7 +13,8 @@ export const documentService = {
    * Get all document categories
    */
   async getCategories(): Promise<DocumentCategory[]> {
-    const categories = await db.document_categories.toArray();
+    const data = extractList(await db.collection('document_categories').get());
+    const categories = (data || []) as DocumentCategory[];
     // Sort by parentId, then by sortOrder
     categories.sort((a, b) => {
       if (a.parentId !== b.parentId) {
@@ -27,23 +29,24 @@ export const documentService = {
    * Get a single category by ID
    */
   async getCategoryById(id: string): Promise<DocumentCategory | undefined> {
-    return await db.document_categories.get(id);
+    const { data } = await db.collection('document_categories').where({ id }).get();
+    return data?.[0] as DocumentCategory | undefined;
   },
 
   /**
    * Add a new category
    */
   async addCategory(category: Omit<DocumentCategory, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
-    const id = `cat_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-    const now = new Date().toISOString();
+    const id = generateId('cat');
+    const ts = now();
     const newCategory: DocumentCategory = {
       ...category,
       id,
-      createdAt: now,
-      updatedAt: now,
+      createdAt: ts,
+      updatedAt: ts,
     };
 
-    await db.document_categories.add(newCategory);
+    await safeAdd('document_categories', newCategory);
     await writeAuditLog('document_category', id, 'create', undefined, newCategory as unknown as Record<string, unknown>);
 
     return id;
@@ -53,16 +56,19 @@ export const documentService = {
    * Update an existing category
    */
   async updateCategory(id: string, updates: Partial<DocumentCategory>): Promise<void> {
-    const oldCategory = await db.document_categories.get(id);
+    const { data } = await db.collection('document_categories').where({ id }).get();
+    const oldCategory = data?.[0];
     if (!oldCategory) throw new Error(`DocumentCategory ${id} not found`);
 
-    const updatedCategory: DocumentCategory = {
-      ...oldCategory,
+    const docId = (oldCategory as any)._id;
+    const updatedFields = {
       ...updates,
-      updatedAt: new Date().toISOString(),
+      updatedAt: now(),
     };
 
-    await db.document_categories.put(updatedCategory);
+    await db.collection('document_categories').doc(docId).update(updatedFields);
+
+    const updatedCategory = { ...oldCategory, ...updatedFields } as DocumentCategory;
     await writeAuditLog('document_category', id, 'update', oldCategory as unknown as Record<string, unknown>, updatedCategory as unknown as Record<string, unknown>);
   },
 
@@ -70,17 +76,20 @@ export const documentService = {
    * Delete a category
    */
   async deleteCategory(id: string): Promise<void> {
-    const oldCategory = await db.document_categories.get(id);
+    const { data: catData } = await db.collection('document_categories').where({ id }).get();
+    const oldCategory = catData?.[0];
     if (!oldCategory) throw new Error(`DocumentCategory ${id} not found`);
 
     // Also delete documents in this category
-    const relatedDocs = await db.documents.where('categoryId').equals(id).toArray();
-    for (const doc of relatedDocs) {
-      await db.documents.delete(doc.id);
-      await writeAuditLog('document', doc.id, 'delete', doc as unknown as Record<string, unknown>, undefined);
+    const { data: relatedDocs } = await db.collection('documents').where({ categoryId: id }).get();
+    for (const doc of (relatedDocs || [])) {
+      const docDocId = (doc as any)._id;
+      await db.collection('documents').doc(docDocId).remove();
+      await writeAuditLog('document', (doc as any).id, 'delete', doc as unknown as Record<string, unknown>, undefined);
     }
 
-    await db.document_categories.delete(id);
+    const catDocId = (oldCategory as any)._id;
+    await db.collection('document_categories').doc(catDocId).remove();
     await writeAuditLog('document_category', id, 'delete', oldCategory as unknown as Record<string, unknown>, undefined);
   },
 
@@ -97,32 +106,31 @@ export const documentService = {
     sortBy?: string;
     sortOrder?: 'asc' | 'desc';
   }): Promise<Document[]> {
-    let collection = db.documents.toCollection();
+    const data = extractList(await db.collection('documents').get());
+    let documents = (data || []) as Document[];
 
     if (filters?.categoryId) {
-      collection = collection.filter(doc => doc.categoryId === filters.categoryId);
+      documents = documents.filter(doc => doc.categoryId === filters.categoryId);
     }
 
     if (filters?.search) {
       const search = filters.search.toLowerCase();
-      collection = collection.filter(doc =>
+      documents = documents.filter(doc =>
         (doc.title?.toLowerCase().includes(search) || false) ||
         (doc.content?.toLowerCase().includes(search) || false)
       );
     }
 
     if (filters?.status) {
-      collection = collection.filter(doc => doc.status === filters.status);
+      documents = documents.filter(doc => doc.status === filters.status);
     }
 
     if (filters?.tags && filters.tags.length > 0) {
-      const tags = filters.tags; // Assign to variable to narrow type
-      collection = collection.filter(doc =>
+      const tags = filters.tags;
+      documents = documents.filter(doc =>
         doc.tags ? tags.some(tag => doc.tags!.includes(tag)) : false
       );
     }
-
-    let documents = await collection.toArray();
 
     // Sort
     if (filters?.sortBy) {
@@ -145,23 +153,24 @@ export const documentService = {
    * Get a single document by ID
    */
   async getDocumentById(id: string): Promise<Document | undefined> {
-    return await db.documents.get(id);
+    const { data } = await db.collection('documents').where({ id }).get();
+    return data?.[0] as Document | undefined;
   },
 
   /**
    * Add a new document
    */
   async addDocument(document: Omit<Document, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
-    const id = `doc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-    const now = new Date().toISOString();
+    const id = generateId('doc');
+    const ts = now();
     const newDocument: Document = {
       ...document,
       id,
-      createdAt: now,
-      updatedAt: now,
+      createdAt: ts,
+      updatedAt: ts,
     };
 
-    await db.documents.add(newDocument);
+    await safeAdd('documents', newDocument);
     await writeAuditLog('document', id, 'create', undefined, newDocument as unknown as Record<string, unknown>);
 
     return id;
@@ -171,16 +180,19 @@ export const documentService = {
    * Update an existing document
    */
   async updateDocument(id: string, updates: Partial<Document>): Promise<void> {
-    const oldDocument = await db.documents.get(id);
+    const { data } = await db.collection('documents').where({ id }).get();
+    const oldDocument = data?.[0];
     if (!oldDocument) throw new Error(`Document ${id} not found`);
 
-    const updatedDocument: Document = {
-      ...oldDocument,
+    const docId = (oldDocument as any)._id;
+    const updatedFields = {
       ...updates,
-      updatedAt: new Date().toISOString(),
+      updatedAt: now(),
     };
 
-    await db.documents.put(updatedDocument);
+    await db.collection('documents').doc(docId).update(updatedFields);
+
+    const updatedDocument = { ...oldDocument, ...updatedFields } as Document;
     await writeAuditLog('document', id, 'update', oldDocument as unknown as Record<string, unknown>, updatedDocument as unknown as Record<string, unknown>);
   },
 
@@ -188,10 +200,12 @@ export const documentService = {
    * Delete a document
    */
   async deleteDocument(id: string): Promise<void> {
-    const oldDocument = await db.documents.get(id);
+    const { data } = await db.collection('documents').where({ id }).get();
+    const oldDocument = data?.[0];
     if (!oldDocument) throw new Error(`Document ${id} not found`);
 
-    await db.documents.delete(id);
+    const docId = (oldDocument as any)._id;
+    await db.collection('documents').doc(docId).remove();
     await writeAuditLog('document', id, 'delete', oldDocument as unknown as Record<string, unknown>, undefined);
   },
 
@@ -204,14 +218,14 @@ export const documentService = {
     byCategory: Record<string, number>;
     totalSize: number;
   }> {
-    const documents = await db.documents.toArray();
-    const categories = await db.document_categories.toArray();
+    const documents = extractList(await db.collection('documents').get());
+    const categories = extractList(await db.collection('document_categories').get());
 
     const byStatus: Record<string, number> = {};
     const byCategory: Record<string, number> = {};
     let totalSize = 0;
 
-    for (const doc of documents) {
+    for (const doc of (documents || []) as Document[]) {
       // Count by status
       byStatus[doc.status] = (byStatus[doc.status] || 0) + 1;
 
@@ -227,7 +241,7 @@ export const documentService = {
     }
 
     return {
-      totalDocuments: documents.length,
+      totalDocuments: (documents || []).length,
       byStatus,
       byCategory,
       totalSize,
@@ -241,28 +255,28 @@ export const documentService = {
     mockCategories: Omit<DocumentCategory, 'id' | 'createdAt' | 'updatedAt'>[],
     mockDocuments: Omit<Document, 'id' | 'createdAt' | 'updatedAt'>[],
   ): Promise<void> {
-    const existingCategories = await db.document_categories.count();
-    if (existingCategories > 0) return; // Already seeded
+    const existingCategories = extractList(await db.collection('document_categories').get());
+    if ((existingCategories || []).length > 0) return; // Already seeded
 
     for (const mock of mockCategories) {
-      const id = `cat_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-      const now = new Date().toISOString();
-      await db.document_categories.add({
+      const id = generateId('cat');
+      const ts = now();
+      await safeAdd('document_categories', {
         ...mock,
         id,
-        createdAt: now,
-        updatedAt: now,
+        createdAt: ts,
+        updatedAt: ts,
       });
     }
 
     for (const mock of mockDocuments) {
-      const id = `doc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-      const now = new Date().toISOString();
-      await db.documents.add({
+      const id = generateId('doc');
+      const ts = now();
+      await safeAdd('documents', {
         ...mock,
         id,
-        createdAt: now,
-        updatedAt: now,
+        createdAt: ts,
+        updatedAt: ts,
       });
     }
   },

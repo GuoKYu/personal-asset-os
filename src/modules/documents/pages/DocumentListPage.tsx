@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import EntityFormModal, { type FormField } from '@/components/EntityFormModal'
 import {
   Plus,
   Upload,
@@ -41,11 +41,11 @@ const statusConfig: Record<string, { label: string; color: string; bg: string }>
 }
 
 const DocumentListPage: React.FC = () => {
-  const navigate = useNavigate()
   const [docs, setDocs] = useState<Document[]>([])
   const [search, setSearch] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('')
   const [loading, setLoading] = useState(true)
+  const [isFormOpen, setIsFormOpen] = useState(false)
 
   useEffect(() => {
     const loadDocs = async () => {
@@ -104,7 +104,7 @@ const DocumentListPage: React.FC = () => {
       <div
         className="relative overflow-hidden rounded-2xl mb-6 anim-fade-in-down"
         style={{
-          background: 'linear-gradient(135deg, rgba(99,102,241,0.12), rgba(245,158,11,0.08))',
+          background: 'linear-gradient(135deg, var(--td-brand-color-light), var(--td-bg-color-container))',
           border: '1px solid var(--glass-border)',
           backdropFilter: 'blur(20px) saturate(180%)',
           WebkitBackdropFilter: 'blur(20px) saturate(180%)',
@@ -121,9 +121,9 @@ const DocumentListPage: React.FC = () => {
               <p style={{ color: 'var(--pao-text-secondary)' }}>{filtered.length} 个文档</p>
             </div>
             <button
-              onClick={() => navigate('/documents/upload')}
+              onClick={() => setIsFormOpen(true)}
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium text-white transition-all duration-300 hover:scale-105"
-              style={{ background: 'linear-gradient(135deg, #6366f1, #f59e0b)' }}
+              style={{ background: 'linear-gradient(135deg, var(--pao-primary), var(--pao-violet))' }}
             >
               <Upload className="h-4 w-4" />
               上传文档
@@ -255,6 +255,31 @@ const DocumentListPage: React.FC = () => {
           )}
         </div>
       </div>
+
+      <EntityFormModal
+        isOpen={isFormOpen}
+        onClose={() => setIsFormOpen(false)}
+        onSubmit={async (data) => {
+          await documentService.addDocument(data as any);
+          const updated = await documentService.getDocuments();
+          setDocs(updated);
+        }}
+        title="上传文档"
+        subtitle="添加文档记录，管理您的各类文件资料"
+        accentGradient="linear-gradient(135deg, var(--pao-primary), var(--pao-violet))"
+        fields={[
+          { key: 'title', label: '文档标题', type: 'text', required: true, placeholder: '如：2025年度体检报告' },
+          { key: 'category', label: '分类', type: 'text', required: true, placeholder: '如：健康档案' },
+          { key: 'type', label: '文件类型', type: 'select', options: [
+            { value: 'PDF', label: 'PDF' },
+            { value: 'DOCX', label: 'DOCX' },
+            { value: 'XLSX', label: 'XLSX' },
+            { value: 'image', label: '图片' },
+            { value: 'other', label: '其他' },
+          ]},
+          { key: 'tags', label: '标签', type: 'tags' },
+        ]}
+      />
     </div>
   )
 }

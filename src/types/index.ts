@@ -580,3 +580,37 @@ export interface ThemeConfig {
   mode: 'light' | 'dark' | 'system';
   primary_color?: string;
 }
+
+// ── User Profile Type ──
+export interface UserProfile {
+  id: string;
+  uid?: string; // CloudBase Auth UID（可选，用于关联认证账户）
+  // Basic Info
+  displayName: string;
+  avatarUrl?: string;
+  bio?: string;
+
+  // Contact Info
+  email?: string;
+  phone?: string;
+  wechat?: string;
+  address?: string;
+
+  // Personal Details
+  birthday?: string;
+  gender?: 'male' | 'female' | 'other';
+  occupation?: string;
+  company?: string;
+  department?: string;
+
+  // Preferences
+  language: string;
+  timezone: string;
+  dateFormat: string;
+  currency: string;
+
+  // System fields
+  createdAt: string;
+  updatedAt: string;
+  version: number;
+}

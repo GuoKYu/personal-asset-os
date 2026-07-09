@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
 import {
   Plus,
   TrendingUp,
@@ -17,6 +16,7 @@ import { growthService } from '@/services/growthService'
 import type { GrowthPath } from '@/types'
 import { formatDate } from '@/utils/format'
 import ParticleBackground from '@/components/effects/ParticleBackground'
+import EntityFormModal, { type FormField } from '@/components/EntityFormModal'
 
 const statusConfig: Record<string, { label: string; color: string; bg: string }> = {
   active: { label: '进行中', color: 'text-blue-600', bg: 'bg-blue-500/10' },
@@ -26,9 +26,9 @@ const statusConfig: Record<string, { label: string; color: string; bg: string }>
 }
 
 const GrowthPathPage: React.FC = () => {
-  const navigate = useNavigate()
   const [paths, setPaths] = useState<GrowthPath[]>([])
   const [loading, setLoading] = useState(true)
+  const [isFormOpen, setIsFormOpen] = useState(false)
 
   useEffect(() => {
     const loadPaths = async () => {
@@ -62,7 +62,7 @@ const GrowthPathPage: React.FC = () => {
       <div
         className="relative overflow-hidden rounded-2xl mb-6 anim-fade-in-down"
         style={{
-          background: 'linear-gradient(135deg, rgba(16,185,129,0.12), rgba(99,102,241,0.08))',
+          background: 'linear-gradient(135deg, var(--td-brand-color-light), var(--td-bg-color-container))',
           border: '1px solid var(--glass-border)',
           backdropFilter: 'blur(20px) saturate(180%)',
           WebkitBackdropFilter: 'blur(20px) saturate(180%)',
@@ -81,9 +81,9 @@ const GrowthPathPage: React.FC = () => {
               </p>
             </div>
             <button
-              onClick={() => navigate('/growth/paths/add')}
+              onClick={() => setIsFormOpen(true)}
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium text-white transition-all duration-300 hover:scale-105"
-              style={{ background: 'linear-gradient(135deg, #10b981, #6366f1)' }}
+              style={{ background: 'linear-gradient(135deg, var(--pao-primary), var(--pao-violet))' }}
             >
               <Plus className="h-4 w-4" />
               新增里程碑
@@ -181,8 +181,8 @@ const GrowthPathPage: React.FC = () => {
                         style={{
                           width: `${path.progress}%`,
                           background: path.status === 'completed'
-                            ? 'linear-gradient(90deg, #10b981, #34d399)'
-                            : 'linear-gradient(90deg, #6366f1, #06b6d4)',
+                            ? 'linear-gradient(90deg, var(--td-success-color), var(--td-success-color))'
+                            : 'linear-gradient(90deg, var(--td-brand-color), var(--td-brand-color))',
                         }}
                       />
                     </div>
@@ -221,6 +221,33 @@ const GrowthPathPage: React.FC = () => {
           <p className="text-sm" style={{ color: 'var(--pao-text-secondary)' }}>暂无成长路径，开始记录你的成长吧</p>
         </div>
       )}
+
+      <EntityFormModal
+        isOpen={isFormOpen}
+        onClose={() => setIsFormOpen(false)}
+        onSubmit={async (data) => {
+          await growthService.addGrowthPath(data as any);
+          const updated = await growthService.getGrowthPaths();
+          setPaths(updated);
+        }}
+        title="新增里程碑"
+        subtitle="记录你的成长节点"
+        accentGradient="linear-gradient(135deg, var(--pao-primary), var(--pao-violet))"
+        fields={[
+          { key: 'title', label: '里程碑名称', type: 'text', required: true, placeholder: '如：晋升高级开发工程师' },
+          { key: 'description', label: '描述', type: 'textarea', placeholder: '简要描述这个成长里程碑...' },
+          { key: 'careerStage', label: '职业阶段', type: 'text', placeholder: '如：T4' },
+          { key: 'targetRole', label: '目标角色', type: 'text', placeholder: '如：高级开发工程师' },
+          { key: 'startDate', label: '开始日期', type: 'date' },
+          { key: 'targetDate', label: '目标完成日期', type: 'date' },
+          { key: 'status', label: '状态', type: 'select', options: [
+            { value: 'active', label: '进行中' },
+            { value: 'completed', label: '已完成' },
+            { value: 'paused', label: '已暂停' },
+          ]},
+          { key: 'progress', label: '进度 (%)', type: 'number', min: 0, max: 100, defaultValue: 0 },
+        ]}
+      />
     </div>
   )
 }
